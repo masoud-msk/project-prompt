@@ -1,3 +1,4 @@
+/* Keep existing content, only injecting the new function. */
 // <ai_context>
 //  Zustand store for managing file selection, ignoring patterns, instructions, theme, etc.
 //  Now includes localStorage persistence for file store and theme store, with default 'dark' theme.
@@ -76,6 +77,9 @@ interface FileStoreState {
   showSuccessToast: (message: string) => void
   showErrorToast: (message: string) => void
   clearToast: () => void
+
+  // New method to apply XML-based changes to the opened directory
+  applyXmlChanges: (xmlText: string) => Promise<void>
 }
 
 async function buildFileTree(
@@ -88,9 +92,8 @@ async function buildFileTree(
     if (
       entry.kind === 'directory' &&
       (entry.name === '.git' || entry.name === 'node_modules')
-    ) {
+    )
       continue
-    }
 
     const path = currentPath ? `${currentPath}/${entry.name}` : entry.name
     if (entry.kind === 'directory') {
@@ -186,7 +189,6 @@ function loadFileState() {
 
 // Build a nested object from loadedFiles, then convert to ASCII tree text
 function buildAsciiTree(paths: string[]): string {
-  // Build nested structure
   const root: Record<string, any> = {}
 
   for (const p of paths) {
@@ -201,7 +203,6 @@ function buildAsciiTree(paths: string[]): string {
     }
   }
 
-  // Print with ASCII lines
   function printTree(
     obj: Record<string, any>,
     prefix: string,
@@ -213,14 +214,9 @@ function buildAsciiTree(paths: string[]): string {
     entries.forEach((key, index) => {
       const child = obj[key]
       const childIsLast = index === entries.length - 1
-      // Branch or final?
       const branch = isLast ? '   ' : '│  '
-
-      // Current line symbol
       const lineSymbol = childIsLast ? '└── ' : '├── '
       output += prefix + lineSymbol + key + '\n'
-
-      // If children
       const subPrefix = prefix + (childIsLast ? '   ' : '│  ')
       if (Object.keys(child).length > 0) {
         output += printTree(child, subPrefix, childIsLast)
@@ -230,7 +226,6 @@ function buildAsciiTree(paths: string[]): string {
     return output
   }
 
-  // top-level (prefix = '')
   let result = printTree(root, '', true)
   return result.trim()
 }
@@ -268,13 +263,14 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     getFinalPrompt: () => '',
     getFinalPromptTokens: () => 0,
 
-    // Toast
     toastOpen: false,
     toastMessage: '',
     toastSeverity: 'success',
     showSuccessToast: () => {},
     showErrorToast: () => {},
     clearToast: () => {},
+
+    applyXmlChanges: async () => {},
   }
 
   const savedState = loadFileState()
@@ -396,7 +392,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         return nodes.map(node => {
           if (node.path === path) {
             const newVal = !node.selected
-            // Update persisted paths
             let newPersisted = [...persistedSelectedFilePaths]
             if (newVal) {
               if (!newPersisted.includes(node.path)) {
@@ -494,7 +489,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       set({ loadedFiles })
       persistFileState(get())
 
-      // After loading, show success toast with total final prompt tokens
       const totalTokens = get().getFinalPromptTokens()
       get().showSuccessToast(
         `Loaded files! (${formatTokenCount(totalTokens)} tokens)`,
@@ -611,10 +605,9 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       return approximateTokens(text)
     },
 
-    // Toast (Snackbar) logic
-    toastOpen: false,
-    toastMessage: '',
-    toastSeverity: 'success' as AlertColor,
+    toastOpen: baseState.toastOpen,
+    toastMessage: baseState.toastMessage,
+    toastSeverity: baseState.toastSeverity,
 
     showSuccessToast(message: string) {
       set({
@@ -634,6 +627,124 @@ export const useFileStore = create<FileStoreState>((set, get) => {
 
     clearToast() {
       set({ toastOpen: false, toastMessage: '' })
+    },
+
+    /**
+     * Apply XML-based code changes to the opened directory.
+     * We fix the Windows path bug by converting backslashes to forward slashes.
+     */
+    async applyXmlChanges(xmlText: string) {
+      const { lastDirHandle, showErrorToast, showSuccessToast } = get()
+      if (!lastDirHandle) {
+        showErrorToast('No directory is open! Please open a directory first.')
+        throw new Error('No directory open')
+      }
+
+      let doc: Document
+      try {
+        doc = new DOMParser().parseFromString(xmlText, 'application/xml')
+      } catch (err) {
+        showErrorToast('Failed to parse XML!')
+        throw err
+      }
+
+      const parserError = doc.querySelector('parsererror')
+      if (parserError) {
+        showErrorToast('XML format error!')
+        throw new Error('Invalid XML')
+      }
+
+      const files = doc.querySelectorAll('changed_files > file')
+      if (!files.length) {
+        showErrorToast('No <file> elements found in XML!')
+        return
+      }
+
+      // Helper to create or navigate to a subdirectory
+      async function getDirectoryHandleRecursive(
+        baseHandle: FileSystemDirectoryHandle,
+        segments: string[],
+      ): Promise<FileSystemDirectoryHandle> {
+        let currentHandle = baseHandle
+        for (const segment of segments) {
+          currentHandle = await currentHandle.getDirectoryHandle(segment, {
+            create: true,
+          })
+        }
+        return currentHandle
+      }
+
+      // Main loop
+      for (const fileElem of files) {
+        const operation = fileElem
+          .querySelector('file_operation')
+          ?.textContent?.trim()
+        let filePath = fileElem.querySelector('file_path')?.textContent?.trim()
+
+        if (!operation || !filePath) {
+          showErrorToast(
+            'Missing file_operation or file_path in one of the <file> elements',
+          )
+          throw new Error('XML missing required fields')
+        }
+
+        // Normalize Windows paths
+        filePath = filePath.replace(/\\/g, '/')
+
+        // Separate out path segments
+        const segments = filePath.split('/').filter(Boolean)
+        if (!segments.length) {
+          showErrorToast(`Invalid file path: ${filePath}`)
+          throw new Error('Invalid file path')
+        }
+
+        // The last segment is the file name, the rest are directories
+        const fileName = segments.pop()!
+        const directorySegments = segments
+
+        try {
+          if (operation === 'CREATE' || operation === 'UPDATE') {
+            const fileCode =
+              fileElem.querySelector('file_code')?.textContent || ''
+            // If no code is present, assume empty string
+
+            // Get or create the subdirectory
+            const parentDir = await getDirectoryHandleRecursive(
+              lastDirHandle,
+              directorySegments,
+            )
+
+            // Create or overwrite the file
+            const fileHandle = await parentDir.getFileHandle(fileName, {
+              create: true,
+            })
+            const writable = await fileHandle.createWritable()
+            await writable.write(fileCode)
+            await writable.close()
+          } else if (operation === 'DELETE') {
+            // Get directory handle
+            const parentDir = await getDirectoryHandleRecursive(
+              lastDirHandle,
+              directorySegments,
+            )
+            // Remove entry
+            await parentDir.removeEntry(fileName, { recursive: true })
+          } else {
+            showErrorToast(`Invalid file_operation: ${operation}`)
+            throw new Error(`Unknown file operation: ${operation}`)
+          }
+        } catch (error) {
+          console.error(
+            `Error applying operation ${operation} on ${filePath}:`,
+            error,
+          )
+          showErrorToast(`Failed to ${operation} ${filePath}`)
+          throw error
+        }
+      }
+
+      // If all changes are applied successfully
+      showSuccessToast('All changes applied successfully!')
     },
   }
 })

@@ -21,6 +21,7 @@ import { styled as muiStyled } from '@mui/material/styles'
 import DownloadIcon from '@mui/icons-material/Download'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ClearIcon from '@mui/icons-material/Clear'
+import { useState } from 'react'
 import { useFileStore } from './store'
 import DirectoryTree from './components/DirectoryTree'
 import InstructionsField from './components/InstructionsField'
@@ -28,6 +29,7 @@ import IgnoreInput from './components/IgnoreInput'
 import SelectedFilesList from './components/SelectedFilesList'
 import CustomInstructionsBar from './components/CustomInstructionsBar'
 import GlobalSnackbar from './components/GlobalSnackbar'
+import ApplyChangesModal from './components/ApplyChangesModal'
 
 export default function App() {
   const {
@@ -46,6 +48,10 @@ export default function App() {
   const handleClearSelection = () => {
     clearSelection()
   }
+
+  const [changesModalOpen, setChangesModalOpen] = useState(false)
+  const openChangesModal = () => setChangesModalOpen(true)
+  const closeChangesModal = () => setChangesModalOpen(false)
 
   return (
     <Wrapper maxWidth={false} disableGutters>
@@ -70,7 +76,7 @@ export default function App() {
           {/* Spacer */}
           <Box sx={{ flex: 1 }} />
 
-          {/* "Load" on the right side */}
+          {/* "Load" and "Apply Changes" on the right side */}
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
             <Tooltip title="Load selected files">
               <span>
@@ -81,6 +87,17 @@ export default function App() {
                   startIcon={<DownloadIcon />}
                 >
                   Load
+                </Button>
+              </span>
+            </Tooltip>
+
+            <Tooltip title="Apply code changes (XML)">
+              <span>
+                <Button
+                  color="inherit"
+                  onClick={openChangesModal}
+                >
+                  Apply Changes
                 </Button>
               </span>
             </Tooltip>
@@ -203,6 +220,12 @@ export default function App() {
           </Box>
         </Box>
       </Box>
+
+      {/* Modal for applying XML changes */}
+      <ApplyChangesModal
+        open={changesModalOpen}
+        onClose={closeChangesModal}
+      />
 
       {/* Global Snackbar for success/error messages */}
       <GlobalSnackbar />
