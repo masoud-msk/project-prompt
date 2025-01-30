@@ -3,7 +3,7 @@
 //  editing existing ones, and removing them if needed. All stored in localStorage via the store.
 // </ai_context>
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Dialog,
@@ -14,15 +14,16 @@ import {
   ListItemText,
   TextField,
   Button,
-  Tooltip,
   Stack,
   Typography,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Tooltip
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useFileStore } from '../store'
+import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
 
 interface Props {
   open: boolean
@@ -34,10 +35,9 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
     customInstructions,
     addCustomInstruction,
     updateCustomInstruction,
-    removeCustomInstruction
+    removeCustomInstruction,
   } = useFileStore()
 
-  // For new or editing
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [nameValue, setNameValue] = useState('')
@@ -79,64 +79,106 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         Manage Custom Instructions
-        <IconButton onClick={handleClose}>
-          <CloseIcon />
-        </IconButton>
+        <Tooltip title="Close">
+          <IconButton onClick={handleClose}>
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
       </DialogTitle>
 
-      <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box
+        sx={{
+          px: 3,
+          pb: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          minHeight: '300px',
+          maxHeight: '70vh',
+        }}
+      >
         {/* Existing Instructions */}
-        {customInstructions.length === 0 && (
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            No custom instructions yet.
-          </Typography>
-        )}
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden' /* remove horizontal overflow */,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            p: 1,
+          }}
+        >
+          {customInstructions.length === 0 && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              No custom instructions yet.
+            </Typography>
+          )}
+          {customInstructions.length > 0 && (
+            <List dense>
+              {customInstructions.map(ci => {
+                const tokenCount = approximateTokens(ci.content)
+                const displayName = `${ci.name} (${formatTokenCount(tokenCount)} T)`
 
-        {customInstructions.length > 0 && (
-          <List>
-            {customInstructions.map((ci) => (
-              <ListItem key={ci.id} disableGutters>
-                <ListItemText
-                  primary={ci.name}
-                  secondary={ci.content.length > 50 ? ci.content.slice(0, 50) + '...' : ci.content}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    aria-label="edit"
-                    onClick={() => handleEdit(ci.id, ci.name, ci.content)}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDelete(ci.id)}
-                    sx={{ ml: 1 }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        )}
+                return (
+                  <ListItem key={ci.id} disableGutters>
+                    <ListItemText
+                      primary={displayName}
+                      secondary={
+                        ci.content.length > 50
+                          ? ci.content.slice(0, 50) + '...'
+                          : ci.content
+                      }
+                    />
+                    <ListItemSecondaryAction>
+                      <Tooltip title="Edit instruction">
+                        <IconButton
+                          edge="end"
+                          aria-label="edit"
+                          onClick={() => handleEdit(ci.id, ci.name, ci.content)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete instruction">
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleDelete(ci.id)}
+                          sx={{ ml: 1 }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                )
+              })}
+            </List>
+          )}
+        </Box>
 
         {/* Create/Edit Form */}
         <Stack direction="column" gap={1}>
           <TextField
             label="Instruction Name"
             value={nameValue}
-            onChange={(e) => setNameValue(e.target.value)}
+            onChange={e => setNameValue(e.target.value)}
             variant="outlined"
             size="small"
           />
           <TextField
             label="Instruction Content"
             value={contentValue}
-            onChange={(e) => setContentValue(e.target.value)}
+            onChange={e => setContentValue(e.target.value)}
             variant="outlined"
             multiline
             rows={3}

@@ -5,21 +5,44 @@
 // </ai_context>
 
 import React, { useState } from 'react'
-import {
-  TextField,
-  Box,
-  Button,
-  Stack,
-  Paper,
-  Tooltip,
-  IconButton,
-  Switch,
-  Typography
-} from '@mui/material'
-import SettingsIcon from '@mui/icons-material/Settings'
+import { TextField, Box, Button, Stack, FormControlLabel, Switch } from '@mui/material'
 import { useFileStore } from '../store'
-import { approximateTokens } from '../utils/tokenHelpers'
-import CustomInstructionsModal from './CustomInstructionsModal'
+import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
+
+// Reuse the buildLoadedFilesTreeText function from PromptGenerator or replicate here
+function buildLoadedFilesTreeText(files: { path: string }[]): string {
+  if (!files.length) return ''
+
+  // Create a nested structure
+  const root: Record<string, any> = {}
+
+  for (const f of files) {
+    const segments = f.path.split('/')
+    let current = root
+    for (const seg of segments) {
+      if (!current[seg]) {
+        current[seg] = {}
+      }
+      current = current[seg]
+    }
+  }
+
+  // Recursively print
+  function printTree(node: Record<string, any>, prefix: string): string {
+    const lines: string[] = []
+    const keys = Object.keys(node).sort()
+    for (const k of keys) {
+      lines.push(prefix + k)
+      const sub = node[k]
+      if (Object.keys(sub).length > 0) {
+        lines.push(printTree(sub, prefix + '  '))
+      }
+    }
+    return lines.join('\n')
+  }
+
+  return printTree(root, '')
+}
 
 export default function InstructionsField() {
   const {
@@ -27,19 +50,19 @@ export default function InstructionsField() {
     setInstructions,
     loadedFiles,
     customInstructions,
-    toggleCustomInstruction
+    includeTreeInPrompt,
+    setIncludeTreeInPrompt
   } = useFileStore()
 
   const [copied, setCopied] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [copiedTokens, setCopiedTokens] = useState(0)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInstructions(e.target.value)
   }
 
-  // Build final prompt: main instructions + active custom instructions + file contents
+  // Build final prompt: main instructions + active custom instructions + file contents + optional tree
   const generatePrompt = (): string => {
-    // Gather active custom instructions
     const activeCustoms = customInstructions.filter(ci => ci.isActive)
 
     let final = instructions
@@ -50,68 +73,39 @@ export default function InstructionsField() {
       final +=
         '\n\n' +
         loadedFiles
-          .map((file) => `---\nFile: ${file.path}\n${file.content}`)
+          .map(file => `---\nFile: ${file.path}\n${file.content}`)
           .join('\n\n')
     }
+    if (includeTreeInPrompt && loadedFiles.length > 0) {
+      const treeText = buildLoadedFilesTreeText(loadedFiles)
+      if (treeText.trim()) {
+        final += '\n\nLOADED FILES TREE:\n' + treeText
+      }
+    }
+
     return final
   }
 
   const handleCopyPrompt = async () => {
+    const prompt = generatePrompt()
+    const tokenCount = approximateTokens(prompt)
+
     try {
-      await navigator.clipboard.writeText(generatePrompt())
+      await navigator.clipboard.writeText(prompt)
       setCopied(true)
+      setCopiedTokens(tokenCount)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy prompt:', err)
     }
   }
 
-  const handleOpenModal = () => {
-    setModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setModalOpen(false)
-  }
+  const copyButtonText = copied
+    ? `Copied! (${formatTokenCount(copiedTokens)} tokens)`
+    : 'Copy Prompt'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      {/* STORED INSTRUCTIONS BAR (Horizontally scrollable) */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto' }}>
-        {customInstructions.map((ci) => (
-          <Tooltip
-            key={ci.id}
-            title={ci.content.length > 50 ? ci.content.slice(0, 50) + '...' : ci.content}
-          >
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 1,
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                minWidth: 'max-content'
-              }}
-            >
-              <Typography variant="body2" sx={{ mr: 1, fontWeight: 600 }}>
-                {ci.name}
-              </Typography>
-              <Switch
-                size="small"
-                color="primary"
-                checked={ci.isActive}
-                onChange={() => toggleCustomInstruction(ci.id)}
-              />
-            </Paper>
-          </Tooltip>
-        ))}
-
-        {/* Manage Instructions Icon */}
-        <IconButton onClick={handleOpenModal} sx={{ ml: 'auto' }}>
-          <SettingsIcon />
-        </IconButton>
-      </Box>
-
       {/* MAIN INSTRUCTIONS TEXT FIELD */}
       <TextField
         label="Instructions"
@@ -124,15 +118,22 @@ export default function InstructionsField() {
         variant="outlined"
       />
 
-      {/* COPY PROMPT BUTTON */}
-      <Stack direction="row" justifyContent="flex-end">
+      {/* Row: Switch + Copy Prompt Button */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <FormControlLabel
+          control={
+            <Switch
+              checked={includeTreeInPrompt}
+              onChange={(e) => setIncludeTreeInPrompt(e.target.checked)}
+            />
+          }
+          label="Add files tree structure"
+        />
+
         <Button variant="contained" color="primary" onClick={handleCopyPrompt}>
-          {copied ? 'Copied!' : 'Copy Prompt'}
+          {copyButtonText}
         </Button>
       </Stack>
-
-      {/* Manage Custom Instructions Modal */}
-      <CustomInstructionsModal open={modalOpen} onClose={handleCloseModal} />
     </Box>
   )
 }

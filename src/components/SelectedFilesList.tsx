@@ -6,6 +6,7 @@
 import React from 'react'
 import { Typography, Box, Paper } from '@mui/material'
 import { useFileStore } from '../store'
+import { formatTokenCount } from '../utils/tokenHelpers'
 
 export default function SelectedFilesList() {
   const { loadedFiles } = useFileStore()
@@ -20,16 +21,22 @@ export default function SelectedFilesList() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="subtitle1">Loaded Files</Typography>
-        <Typography variant="body2">Total: {totalTokens} tokens</Typography>
+        <Typography variant="body2">
+          Total: {formatTokenCount(totalTokens)} tokens
+        </Typography>
       </Box>
 
       {loadedFiles.map((file) => (
-        <Paper key={file.path} variant="outlined" sx={{ p: 1, display: 'flex', justifyContent: 'space-between' }}>
+        <Paper
+          key={file.path}
+          variant="outlined"
+          sx={{ p: 1, display: 'flex', justifyContent: 'space-between' }}
+        >
           <Typography variant="body2" sx={{ fontWeight: 500 }}>
             {file.path}
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            {file.tokenCount} tokens
+            {formatTokenCount(file.tokenCount)} tokens
           </Typography>
         </Paper>
       ))}

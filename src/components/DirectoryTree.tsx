@@ -4,13 +4,8 @@
 //  We decreased the margin/padding between rows further.
 // </ai_context>
 
-import React, { useState } from 'react'
-import {
-  Box,
-  Checkbox,
-  IconButton,
-  Typography
-} from '@mui/material'
+import { useState } from 'react'
+import { Box, Checkbox, IconButton, Typography, Tooltip } from '@mui/material'
 import { styled as muiStyled } from '@mui/material/styles'
 import FolderIcon from '@mui/icons-material/Folder'
 import DescriptionIcon from '@mui/icons-material/Description'
@@ -29,17 +24,19 @@ interface FileNode {
 
 export default function DirectoryTree() {
   const { fileTree, toggleSelection } = useFileStore()
-  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
+    {},
+  )
 
   const handleExpandToggle = (path: string) => {
-    setExpandedNodes((prev) => ({
+    setExpandedNodes(prev => ({
       ...prev,
-      [path]: !prev[path]
+      [path]: !prev[path],
     }))
   }
 
   const renderTree = (nodes: FileNode[]) => {
-    return nodes.map((node) => {
+    return nodes.map(node => {
       const isFolder = node.isDirectory
       const isExpanded = expandedNodes[node.path] || false
 
@@ -51,12 +48,18 @@ export default function DirectoryTree() {
         <NodeBox key={node.path}>
           <RowBox>
             {isFolder ? (
-              <IconButton
-                size="small"
-                onClick={() => handleExpandToggle(node.path)}
-              >
-                {isExpanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-              </IconButton>
+              <Tooltip title={isExpanded ? 'Collapse folder' : 'Expand folder'}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleExpandToggle(node.path)}
+                >
+                  {isExpanded ? (
+                    <ExpandMoreIcon fontSize="small" />
+                  ) : (
+                    <ChevronRightIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
             ) : (
               <IconButton size="small" sx={{ visibility: 'hidden' }}>
                 <ChevronRightIcon fontSize="small" />
@@ -77,11 +80,10 @@ export default function DirectoryTree() {
 
             <Typography variant="body2">{node.name}</Typography>
           </RowBox>
-          {isFolder && node.children && node.children.length > 0 && isExpanded && (
-            <IndentBox>
-              {renderTree(node.children)}
-            </IndentBox>
-          )}
+          {isFolder &&
+            node.children &&
+            node.children.length > 0 &&
+            isExpanded && <IndentBox>{renderTree(node.children)}</IndentBox>}
         </NodeBox>
       )
     })
@@ -91,15 +93,15 @@ export default function DirectoryTree() {
 }
 
 const NodeBox = muiStyled(Box)(() => ({
-  marginBottom: '1px' // Slightly smaller spacing
+  marginBottom: '1px', // Slightly smaller spacing
 }))
 
 const RowBox = muiStyled(Box)(() => ({
   display: 'flex',
   alignItems: 'center',
-  marginBottom: '2px'
+  marginBottom: '2px',
 }))
 
 const IndentBox = muiStyled(Box)(() => ({
-  marginLeft: '1.2rem'
+  marginLeft: '1.2rem',
 }))

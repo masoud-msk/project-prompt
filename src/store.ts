@@ -5,8 +5,7 @@
 
 import { create } from "zustand";
 import { approximateTokens } from "./utils/tokenHelpers";
-
-import { v4 as uuidv4 } from "uuid"; // for unique IDs
+import { v4 as uuidv4 } from "uuid";
 
 interface FileNode {
   name: string;
@@ -37,10 +36,20 @@ interface FileStoreState {
   instructions: string;
   ignorePatterns: string;
 
+  lastDirHandle: any | null;
+
   // Custom instructions
   customInstructions: CustomInstruction[];
 
+  // Tracks whether we include the file tree text in final prompt
+  includeTreeInPrompt: boolean;
+  setIncludeTreeInPrompt: (val: boolean) => void;
+
+  // Persist selected file paths even if directory is closed/reopened
+  persistedSelectedFilePaths: string[];
+
   openDirectory: () => Promise<void>;
+  refreshDirectory: () => Promise<void>;
   toggleSelection: (path: string, handle: any, isDirectory: boolean) => void;
   loadSelectedFiles: () => Promise<void>;
   setInstructions: (value: string) => void;
@@ -51,12 +60,14 @@ interface FileStoreState {
   updateCustomInstruction: (id: string, name: string, content: string) => void;
   removeCustomInstruction: (id: string) => void;
   toggleCustomInstruction: (id: string) => void;
+
+  // Clear selection
+  clearSelection: () => void;
 }
 
-// Utility function to build a file tree from a directory handle
 async function buildFileTree(
   directoryHandle: any,
-  currentPath = "",
+  currentPath = ""
 ): Promise<FileNode[]> {
   const items: FileNode[] = [];
   for await (const entry of directoryHandle.values()) {
@@ -99,7 +110,6 @@ async function buildFileTree(
   return items;
 }
 
-// Simple ignore check: each line is a substring we match against the path.
 function isIgnored(path: string, ignoreLines: string[]): boolean {
   return ignoreLines.some((line) => {
     const pattern = line.trim();
@@ -108,7 +118,6 @@ function isIgnored(path: string, ignoreLines: string[]): boolean {
   });
 }
 
-// Used to remove FileSystemHandle references for localStorage
 function stripHandlesFromTree(nodes: FileNode[]): Omit<FileNode, "handle">[] {
   return nodes.map((node) => {
     const { handle, children, ...rest } = node;
@@ -128,13 +137,14 @@ function persistFileState(state: FileStoreState) {
     instructions,
     ignorePatterns,
     customInstructions,
+    lastDirHandle,
+    includeTreeInPrompt,
+    persistedSelectedFilePaths
   } = state;
 
-  // Strip file handles from the stored data
   const newTree = stripHandlesFromTree(fileTree);
   const newSelected = stripHandlesFromTree(selectedFiles);
 
-  // Save entire file state to localStorage
   const storeObj = {
     fileTree: newTree,
     selectedFiles: newSelected,
@@ -142,6 +152,9 @@ function persistFileState(state: FileStoreState) {
     instructions,
     ignorePatterns,
     customInstructions,
+    lastDirHandle: null, // can't store real handle
+    includeTreeInPrompt,
+    persistedSelectedFilePaths
   };
   localStorage.setItem("fileStoreData", JSON.stringify(storeObj));
 }
@@ -159,16 +172,23 @@ function loadFileState() {
 }
 
 export const useFileStore = create<FileStoreState>((set, get) => {
-  // Hydrate from localStorage if present
   const initialState: FileStoreState = {
     fileTree: [],
     selectedFiles: [],
     loadedFiles: [],
     instructions: "",
     ignorePatterns: "",
+    lastDirHandle: null,
+
     customInstructions: [],
 
+    includeTreeInPrompt: false,
+    setIncludeTreeInPrompt: () => {},
+
+    persistedSelectedFilePaths: [],
+
     openDirectory: async () => {},
+    refreshDirectory: async () => {},
     toggleSelection: () => {},
     loadSelectedFiles: async () => {},
     setInstructions: () => {},
@@ -178,15 +198,20 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     updateCustomInstruction: () => {},
     removeCustomInstruction: () => {},
     toggleCustomInstruction: () => {},
+
+    clearSelection: () => {}
   };
 
   const savedState = loadFileState();
-  const baseState = savedState
-    ? { ...initialState, ...savedState }
-    : initialState;
+  const baseState = savedState ? { ...initialState, ...savedState } : initialState;
 
   return {
     ...baseState,
+
+    setIncludeTreeInPrompt(val: boolean) {
+      set({ includeTreeInPrompt: val });
+      persistFileState(get());
+    },
 
     async openDirectory() {
       if (!window.showDirectoryPicker) {
@@ -196,22 +221,115 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       try {
         const dirHandle = await window.showDirectoryPicker();
         const tree = await buildFileTree(dirHandle);
-        set({ fileTree: tree, selectedFiles: [], loadedFiles: [] });
+        // Reselect nodes that were previously selected
+        const reselectTree = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map((node) => {
+            const newNode = { ...node };
+            if (get().persistedSelectedFilePaths.includes(node.path)) {
+              newNode.selected = true;
+            }
+            if (node.isDirectory && node.children?.length) {
+              newNode.children = reselectTree(node.children);
+            }
+            return newNode;
+          });
+        };
+        const updatedTree = reselectTree(tree);
+
+        // Gather the newly reselected
+        const newSelected: FileNode[] = [];
+        const gatherSelected = (nodes: FileNode[]) => {
+          nodes.forEach((n) => {
+            if (n.selected) {
+              newSelected.push(n);
+            }
+            if (n.isDirectory && n.children?.length) {
+              gatherSelected(n.children);
+            }
+          });
+        };
+        gatherSelected(updatedTree);
+
+        set({
+          fileTree: updatedTree,
+          selectedFiles: newSelected,
+          loadedFiles: [],
+          lastDirHandle: dirHandle
+        });
         persistFileState(get());
       } catch (err) {
         console.error("Error opening directory:", err);
       }
     },
 
+    async refreshDirectory() {
+      const { lastDirHandle } = get();
+      if (lastDirHandle) {
+        try {
+          const tree = await buildFileTree(lastDirHandle);
+          // Reselect nodes that were previously selected
+          const reselectTree = (nodes: FileNode[]): FileNode[] => {
+            return nodes.map((node) => {
+              const newNode = { ...node };
+              if (get().persistedSelectedFilePaths.includes(node.path)) {
+                newNode.selected = true;
+              }
+              if (node.isDirectory && node.children?.length) {
+                newNode.children = reselectTree(node.children);
+              }
+              return newNode;
+            });
+          };
+          const updatedTree = reselectTree(tree);
+
+          // Gather the newly reselected
+          const newSelected: FileNode[] = [];
+          const gatherSelected = (nodes: FileNode[]) => {
+            nodes.forEach((n) => {
+              if (n.selected) {
+                newSelected.push(n);
+              }
+              if (n.isDirectory && n.children?.length) {
+                gatherSelected(n.children);
+              }
+            });
+          };
+          gatherSelected(updatedTree);
+
+          set({
+            fileTree: updatedTree,
+            selectedFiles: newSelected,
+            loadedFiles: []
+          });
+          persistFileState(get());
+          return;
+        } catch (err) {
+          console.error("Error refreshing directory:", err);
+        }
+      }
+      await get().openDirectory();
+    },
+
     toggleSelection(path: string, handle: any, isDirectory: boolean) {
-      const { fileTree } = get();
+      const { fileTree, persistedSelectedFilePaths } = get();
 
       const updateSelection = (nodes: FileNode[]): FileNode[] => {
         return nodes.map((node) => {
           if (node.path === path) {
             const newVal = !node.selected;
+            // Update persisted paths
+            let newPersisted = [...persistedSelectedFilePaths];
+            if (newVal) {
+              if (!newPersisted.includes(node.path)) {
+                newPersisted.push(node.path);
+              }
+            } else {
+              newPersisted = newPersisted.filter((p) => p !== node.path);
+            }
+            set({ persistedSelectedFilePaths: newPersisted });
+
             if (node.isDirectory && node.children?.length) {
-              node.children = toggleChildren(node.children, newVal);
+              node.children = toggleChildren(node.children, newVal, newPersisted);
             }
             return { ...node, selected: newVal };
           }
@@ -225,10 +343,22 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       const toggleChildren = (
         nodes: FileNode[],
         newVal: boolean,
+        newPersisted: string[]
       ): FileNode[] => {
         return nodes.map((n) => {
+          if (newVal) {
+            if (!newPersisted.includes(n.path)) {
+              newPersisted.push(n.path);
+            }
+          } else {
+            const idx = newPersisted.indexOf(n.path);
+            if (idx !== -1) {
+              newPersisted.splice(idx, 1);
+            }
+          }
+
           if (n.isDirectory && n.children?.length) {
-            n.children = toggleChildren(n.children, newVal);
+            n.children = toggleChildren(n.children, newVal, newPersisted);
           }
           return { ...n, selected: newVal };
         });
@@ -236,7 +366,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
 
       const newTree = updateSelection(fileTree);
 
-      // Rebuild selected files array
       const allSelected: FileNode[] = [];
       const gatherSelected = (nodes: FileNode[]) => {
         nodes.forEach((node) => {
@@ -292,13 +421,12 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       persistFileState(get());
     },
 
-    // Custom instructions CRUD
     addCustomInstruction(name: string, content: string) {
       const newCI = {
         id: uuidv4(),
         name,
         content,
-        isActive: true, // default active
+        isActive: true,
       };
       const updated = [...get().customInstructions, newCI];
       set({ customInstructions: updated });
@@ -332,15 +460,34 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       set({ customInstructions: updated });
       persistFileState(get());
     },
+
+    clearSelection() {
+      const { fileTree } = get();
+
+      const clearAll = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map((node) => {
+          if (node.children?.length) {
+            node.children = clearAll(node.children);
+          }
+          return { ...node, selected: false };
+        });
+      };
+      const newTree = clearAll(fileTree);
+
+      set({
+        fileTree: newTree,
+        selectedFiles: [],
+        loadedFiles: [],
+        persistedSelectedFilePaths: []
+      });
+      persistFileState(get());
+    }
   };
 });
 
-// THEME STORE (with localStorage persistence)
+// THEME STORE
 export const useThemeStore = create((set, get) => {
-  // Hide the switch => we won't remove the code but set the default to 'dark'
-  const savedTheme =
-    typeof window !== "undefined" ? localStorage.getItem("theme") : null;
-  // Force default 'dark' if no saved theme
+  const savedTheme = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
   const initialThemeMode = savedTheme || "dark";
 
   return {

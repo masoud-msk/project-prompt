@@ -1,108 +1,98 @@
 // <ai_context>
 //  Displays a horizontally scrollable list of custom instructions (by name).
-//  Allows toggling them on/off and shows a tooltip with partial content.
-//  Has a button at the end to open a modal for creating/editing instructions.
+//  Placed above the InstructionsField, toggled on click (no width change).
+//  Also includes a tooltip with partial content, and a Settings icon to open the modal.
 // </ai_context>
 
-import React from 'react'
-import {
-  Box,
-  IconButton,
-  Tooltip,
-  Typography,
-  FormControlLabel,
-  Switch,
-  Paper
-} from '@mui/material'
-import AddCircleIcon from '@mui/icons-material/AddCircle'
+import { useState } from 'react'
+import { Box, Tooltip, Typography, IconButton, Paper, Stack } from '@mui/material'
+import SettingsIcon from '@mui/icons-material/Settings'
 import { useFileStore } from '../store'
-import { CustomInstructionsModal } from './CustomInstructionsModal'
+import CustomInstructionsModal from './CustomInstructionsModal'
+import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
 
-export function CustomInstructionsBar() {
-  const {
-    customInstructions,
-    toggleCustomInstruction
-  } = useFileStore()
+export default function CustomInstructionsBar() {
+  const { customInstructions, toggleCustomInstruction } = useFileStore()
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const [modalOpen, setModalOpen] = React.useState(false)
-  const [editInstructionId, setEditInstructionId] = React.useState<string | null>(null)
-
-  const handleOpenAddModal = () => {
-    setEditInstructionId(null) // no existing instruction => create new
-    setModalOpen(true)
+  const handleToggle = (id: string) => {
+    toggleCustomInstruction(id)
   }
 
-  const handleEdit = (id: string) => {
-    setEditInstructionId(id)
+  const handleOpenModal = () => {
     setModalOpen(true)
   }
-
   const handleCloseModal = () => {
     setModalOpen(false)
-    setEditInstructionId(null)
   }
 
   return (
-    <Box>
-      <Paper
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={1}
+      sx={{ mb: 1 }}
+    >
+      {/* Scrollable instructions (flexGrow:1) */}
+      <Box
         sx={{
-          p: 1,
           display: 'flex',
           alignItems: 'center',
           overflowX: 'auto',
           gap: 1,
-          mb: 1
+          flexGrow: 1
         }}
       >
-        {/* List of instructions */}
-        {customInstructions.map((inst) => (
-          <Box
-            key={inst.id}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: inst.enabled ? 'primary.light' : 'inherit',
-              borderRadius: 1,
-              px: 1
-            }}
-          >
-            <Tooltip title={inst.content.slice(0, 60) + (inst.content.length > 60 ? '...' : '')}>
-              <Typography
-                variant="body2"
-                sx={{ cursor: 'pointer', fontWeight: 'bold', mr: 1 }}
-                onClick={() => handleEdit(inst.id)}
+        {customInstructions.map(ci => {
+          const truncated =
+            ci.content.length > 60 ? ci.content.slice(0, 60) + '...' : ci.content
+
+          // Show token count in short format
+          const tokenCount = approximateTokens(ci.content)
+          const label = `${ci.name} (${formatTokenCount(tokenCount)} T)`
+
+          return (
+            <Tooltip key={ci.id} title={truncated}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  backgroundColor: ci.isActive ? 'primary.light' : 'inherit',
+                  minWidth: 'max-content',
+                }}
+                onClick={() => handleToggle(ci.id)}
               >
-                {inst.name}
-              </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 400,
+                    // text should be dark if isActive
+                    color: ci.isActive ? '#000' : 'inherit',
+                  }}
+                >
+                  {label}
+                </Typography>
+              </Paper>
             </Tooltip>
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={inst.enabled}
-                  onChange={() => toggleCustomInstruction(inst.id)}
-                />
-              }
-              label=""
-              sx={{ m: 0 }}
-            />
-          </Box>
-        ))}
+          )
+        })}
+      </Box>
 
-        {/* Button to create new instruction */}
-        <IconButton onClick={handleOpenAddModal} size="small" color="primary">
-          <AddCircleIcon />
+      {/* Manage instructions (Settings) */}
+      <Tooltip title="Manage Custom Instructions">
+        <IconButton
+          onClick={handleOpenModal}
+          size="small"
+          color="inherit"
+        >
+          <SettingsIcon />
         </IconButton>
-      </Paper>
+      </Tooltip>
 
-      {/* Modal for adding/editing instructions */}
-      {modalOpen && (
-        <CustomInstructionsModal
-          open={modalOpen}
-          onClose={handleCloseModal}
-          editInstructionId={editInstructionId}
-        />
-      )}
-    </Box>
+      <CustomInstructionsModal open={modalOpen} onClose={handleCloseModal} />
+    </Stack>
   )
 }

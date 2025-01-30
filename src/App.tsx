@@ -1,12 +1,12 @@
 // <ai_context>
 //  Main application component, fully using MUI for layout.
-//  1) Hide the dark/light switch in the app bar
-//  2) Keep default as dark theme
-//  3) Use the new gold primary color from the updated theme
-//  4) Ensure only directory tree content and loaded files scroll
+//  1) Full height usage
+//  2) "CustomInstructionsBar" is placed above "InstructionsField", not in the top AppBar
+//  3) The top bar just has "Repo Prompt", "Load", "Prompt"
+//  4) "Open" but remove "Refresh" from Directory Structure panel
 // </ai_context>
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   AppBar,
   Toolbar,
@@ -15,13 +15,14 @@ import {
   Button,
   Container,
   Stack,
-  IconButton
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import { styled as muiStyled } from '@mui/material/styles'
-import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import DownloadIcon from '@mui/icons-material/Download'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import RefreshIcon from '@mui/icons-material/Refresh'
+import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import ClearIcon from '@mui/icons-material/Clear'
 
 import { useFileStore } from './store'
 import DirectoryTree from './components/DirectoryTree'
@@ -30,63 +31,83 @@ import IgnoreInput from './components/IgnoreInput'
 import SelectedFilesList from './components/SelectedFilesList'
 import PromptGenerator from './components/PromptGenerator'
 import Modal from './components/Modal'
+import CustomInstructionsBar from './components/CustomInstructionsBar'
 
 export default function App() {
-  const { openDirectory, loadSelectedFiles, fileTree, selectedFiles } = useFileStore()
+  const {
+    loadSelectedFiles,
+    fileTree,
+    selectedFiles,
+    openDirectory,
+    clearSelection,
+  } = useFileStore()
   const [showPromptModal, setShowPromptModal] = useState(false)
 
   const handleShowPrompt = () => setShowPromptModal(true)
   const handleClosePrompt = () => setShowPromptModal(false)
 
-  const handleRefreshDirectory = () => {
-    // We'll simply re-open the directory to "refresh"
+  const handleOpenDirectory = () => {
     openDirectory()
+  }
+
+  const handleClearSelection = () => {
+    clearSelection()
   }
 
   return (
     <Wrapper maxWidth={false} disableGutters>
       {/* Top AppBar */}
-      <AppBar position="static" elevation={0} sx={{ borderBottom: 'none' }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Repo Prompt WebApp
+      <AppBar
+        position="static"
+        elevation={0}
+        sx={{ borderBottom: 'none', p: 0 }}
+      >
+        <Toolbar
+          sx={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            gap: 2,
+            minHeight: '44px',
+          }}
+        >
+          <Typography variant="h6" sx={{ whiteSpace: 'nowrap' }}>
+            Project Prompt
           </Typography>
 
-          <Stack direction="row" spacing={1}>
-            {/* Open Directory Button (with label) */}
-            <Button
-              color="inherit"
-              onClick={openDirectory}
-              startIcon={<FolderOpenIcon />}
-            >
-              Open
-            </Button>
+          {/* Spacer */}
+          <Box sx={{ flex: 1 }} />
 
-            {/* Load Files Button (with label) */}
-            <Button
-              color="inherit"
-              onClick={loadSelectedFiles}
-              disabled={selectedFiles.length === 0}
-              startIcon={<DownloadIcon />}
-            >
-              Load
-            </Button>
+          {/* "Load" and "Prompt" on the right side */}
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+            <Tooltip title="Load selected files">
+              <span>
+                <Button
+                  color="inherit"
+                  onClick={loadSelectedFiles}
+                  disabled={selectedFiles.length === 0}
+                  startIcon={<DownloadIcon />}
+                >
+                  Load
+                </Button>
+              </span>
+            </Tooltip>
 
-            {/* Show Prompt Button (with label) */}
-            <Button
-              color="inherit"
-              onClick={handleShowPrompt}
-              startIcon={<VisibilityIcon />}
-            >
-              Prompt
-            </Button>
+            <Tooltip title="View final prompt">
+              <Button
+                color="inherit"
+                onClick={handleShowPrompt}
+                startIcon={<VisibilityIcon />}
+              >
+                Prompt
+              </Button>
+            </Tooltip>
           </Stack>
         </Toolbar>
       </AppBar>
 
-      {/* Main content */}
+      {/* Main content area */}
       <Box sx={{ display: 'flex', flex: 1, p: 2, gap: 2 }}>
-        {/* Left Pane (DirectoryTree) */}
+        {/* Left Pane (Directory Tree) */}
         <Box
           sx={{
             flex: 1,
@@ -95,10 +116,10 @@ export default function App() {
             border: 1,
             borderColor: 'divider',
             borderRadius: 1,
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}
         >
-          {/* Header row with "Directory Structure" label and refresh button */}
+          {/* Directory Structure header (Open + Clear) */}
           <Box
             sx={{
               display: 'flex',
@@ -106,30 +127,39 @@ export default function App() {
               justifyContent: 'space-between',
               p: 1,
               borderBottom: 1,
-              borderColor: 'divider'
+              borderColor: 'divider',
+              gap: 1,
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
               Directory Structure
             </Typography>
-            <IconButton
-              size="small"
-              color="inherit"
-              onClick={handleRefreshDirectory}
-              title="Refresh Directory"
-            >
-              <RefreshIcon />
-            </IconButton>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Tooltip title="Open directory">
+                <Button
+                  size="small"
+                  color="inherit"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleOpenDirectory}
+                >
+                  Open
+                </Button>
+              </Tooltip>
+              <Tooltip title="Clear selection">
+                <IconButton
+                  size="small"
+                  color="inherit"
+                  onClick={handleClearSelection}
+                >
+                  <ClearIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
-          {/* Actual tree content */}
-          <Box
-            sx={{
-              flex: 1,
-              overflowY: 'auto',
-              p: 1
-            }}
-          >
+          {/* Tree content */}
+          <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
             {fileTree.length === 0 ? (
               <Typography variant="body2">No directory opened yet.</Typography>
             ) : (
@@ -149,10 +179,13 @@ export default function App() {
             borderRadius: 1,
             p: 2,
             gap: 2,
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}
         >
-          {/* Instructions (with "Copy Prompt" button) */}
+          {/* Custom Instructions Bar */}
+          <CustomInstructionsBar />
+
+          {/* Instructions */}
           <Box>
             <InstructionsField />
           </Box>
@@ -171,7 +204,7 @@ export default function App() {
               borderColor: 'divider',
               borderRadius: 1,
               p: 1,
-              minHeight: 0
+              minHeight: 0,
             }}
           >
             <SelectedFilesList />
@@ -179,7 +212,7 @@ export default function App() {
         </Box>
       </Box>
 
-      {/* Modal for Final Prompt */}
+      {/* Prompt Modal */}
       <Modal show={showPromptModal} onClose={handleClosePrompt}>
         <Typography variant="h6" gutterBottom>
           Final Prompt
@@ -190,9 +223,8 @@ export default function App() {
   )
 }
 
-const Wrapper = muiStyled(Container)(({ theme }) => ({
+const Wrapper = muiStyled(Container)(() => ({
   display: 'flex',
   flexDirection: 'column',
-  backgroundColor: theme.palette.background.default,
-  color: theme.palette.text.primary
+  height: '100%',
 }))
