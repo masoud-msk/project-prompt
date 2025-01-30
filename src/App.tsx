@@ -1,3 +1,4 @@
+/*
 // <ai_context>
 //  Main application component, fully using MUI for layout.
 //  1) Full height usage
@@ -5,6 +6,7 @@
 //  3) The top bar just has "Repo Prompt", "Load", "Prompt"
 //  4) "Open" but remove "Refresh" from Directory Structure panel
 // </ai_context>
+*/
 
 import {
   AppBar,
@@ -21,7 +23,8 @@ import { styled as muiStyled } from '@mui/material/styles'
 import DownloadIcon from '@mui/icons-material/Download'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ClearIcon from '@mui/icons-material/Clear'
-import { useState } from 'react'
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt'
+import { useState, useEffect } from 'react'
 import { useFileStore } from './store'
 import DirectoryTree from './components/DirectoryTree'
 import InstructionsField from './components/InstructionsField'
@@ -39,7 +42,17 @@ export default function App() {
     openDirectory,
     clearSelection,
     lastDirHandle,
+    refreshDirectory,
   } = useFileStore()
+
+  // Effect to automatically re-open (refresh) the last directory on reload
+  useEffect(() => {
+    if (lastDirHandle) {
+      refreshDirectory()
+    }
+    // We only call refreshDirectory() once on mount if lastDirHandle exists
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleOpenDirectory = () => {
     openDirectory()
@@ -76,32 +89,17 @@ export default function App() {
           {/* Spacer */}
           <Box sx={{ flex: 1 }} />
 
-          {/* "Load" and "Apply Changes" on the right side */}
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Tooltip title="Load selected files">
-              <span>
-                <Button
-                  color="inherit"
-                  onClick={loadSelectedFiles}
-                  disabled={selectedFiles.length === 0}
-                  startIcon={<DownloadIcon />}
-                >
-                  Load
-                </Button>
-              </span>
-            </Tooltip>
-
-            <Tooltip title="Apply code changes (XML)">
-              <span>
-                <Button
-                  color="inherit"
-                  onClick={openChangesModal}
-                >
-                  Apply Changes
-                </Button>
-              </span>
-            </Tooltip>
-          </Stack>
+          {/* "Apply Changes" button in the AppBar */}
+          <Tooltip title="Apply code changes (XML)">
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<SystemUpdateAltIcon />}
+              onClick={openChangesModal}
+            >
+              Apply Changes
+            </Button>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
@@ -167,13 +165,35 @@ export default function App() {
             </Box>
           </Box>
 
-          {/* Tree content */}
+          {/* Tree content (fills remaining space) */}
           <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
             {fileTree.length === 0 ? (
               <Typography variant="body2">No directory opened yet.</Typography>
             ) : (
               <DirectoryTree />
             )}
+          </Box>
+
+          {/* Bottom: Ignore Patterns + Load Button */}
+          <Box
+            sx={{
+              borderTop: 1,
+              borderColor: 'divider',
+              p: 1,
+              display: 'flex',
+              gap: 1,
+            }}
+          >
+            <IgnoreInput />
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<DownloadIcon />}
+              onClick={loadSelectedFiles}
+              disabled={selectedFiles.length === 0}
+            >
+              Load Files
+            </Button>
           </Box>
         </Box>
 
@@ -199,11 +219,6 @@ export default function App() {
             <InstructionsField />
           </Box>
 
-          {/* Ignore Patterns */}
-          <Box>
-            <IgnoreInput />
-          </Box>
-
           {/* Loaded Files (scrollable) */}
           <Box
             sx={{
@@ -222,10 +237,7 @@ export default function App() {
       </Box>
 
       {/* Modal for applying XML changes */}
-      <ApplyChangesModal
-        open={changesModalOpen}
-        onClose={closeChangesModal}
-      />
+      <ApplyChangesModal open={changesModalOpen} onClose={closeChangesModal} />
 
       {/* Global Snackbar for success/error messages */}
       <GlobalSnackbar />

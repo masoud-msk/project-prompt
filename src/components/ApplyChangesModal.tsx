@@ -26,10 +26,22 @@ const exampleXml = `<code_changes>
   <changed_files>
     <file>
       <file_operation>CREATE</file_operation>
-      <file_path>test/hello.ts</file_path>
+      <file_path>app/page.tsx</file_path>
       <file_code><![CDATA[
 console.log("Hello from newly created file!")
 ]]></file_code>
+    </file>
+    <file>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/store.ts</file_path>
+      <file_code><![CDATA[
+// Some updated content
+console.log("Store updated!")
+]]></file_code>
+    </file>
+    <file>
+      <file_operation>DELETE</file_operation>
+      <file_path>src/oldFile.ts</file_path>
     </file>
   </changed_files>
 </code_changes>`
@@ -37,7 +49,7 @@ console.log("Hello from newly created file!")
 export default function ApplyChangesModal({ open, onClose }: Props) {
   const { applyXmlChanges } = useFileStore()
 
-  const [xmlText, setXmlText] = useState(exampleXml)
+  const [xmlText, setXmlText] = useState('')
   const [isApplying, setIsApplying] = useState(false)
 
   const handleClose = () => {
@@ -86,6 +98,7 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
           rows={12}
           value={xmlText}
           onChange={e => setXmlText(e.target.value)}
+          placeholder={exampleXml}
           variant="outlined"
           fullWidth
         />

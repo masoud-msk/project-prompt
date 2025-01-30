@@ -19,14 +19,13 @@ export default function IgnoreInput() {
       label="Ignore Patterns"
       fullWidth
       multiline
-      rows={2}  // Decreased height
+      rows={4}
       value={ignorePatterns}
       onChange={handleChange}
       placeholder={`node_modules
 .git
-dist
-coverage
 *.log
+dist
 `}
       variant="outlined"
     />

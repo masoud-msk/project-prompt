@@ -69,7 +69,7 @@ export default function InstructionsField() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
       {/* MAIN INSTRUCTIONS TEXT FIELD */}
       <TextField
         label="Instructions"

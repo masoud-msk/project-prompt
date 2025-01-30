@@ -26,7 +26,9 @@ interface FileNode {
 
 export default function DirectoryTree() {
   const { fileTree, toggleSelection } = useFileStore()
-  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
+    {},
+  )
 
   const handleExpandToggle = (path: string) => {
     setExpandedNodes(prev => ({
@@ -60,18 +62,16 @@ export default function DirectoryTree() {
         <NodeBox key={node.path}>
           <RowBox>
             {isFolder ? (
-              <Tooltip title={isExpanded ? 'Collapse folder' : 'Expand folder'}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleExpandToggle(node.path)}
-                >
-                  {isExpanded ? (
-                    <ExpandMoreIcon fontSize="small" />
-                  ) : (
-                    <ChevronRightIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                size="small"
+                onClick={() => handleExpandToggle(node.path)}
+              >
+                {isExpanded ? (
+                  <ExpandMoreIcon fontSize="small" />
+                ) : (
+                  <ChevronRightIcon fontSize="small" />
+                )}
+              </IconButton>
             ) : (
               <IconButton size="small" sx={{ visibility: 'hidden' }}>
                 <ChevronRightIcon fontSize="small" />
