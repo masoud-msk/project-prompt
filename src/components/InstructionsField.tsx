@@ -19,6 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useFileStore } from '../store'
 import Modal from './Modal'
 import PromptGenerator from './PromptGenerator'
+import { formatTokenCount } from '../utils/tokenHelpers'
 
 export default function InstructionsField() {
   const {
@@ -61,7 +62,7 @@ export default function InstructionsField() {
 
     try {
       await navigator.clipboard.writeText(prompt)
-      showSuccessToast(`Copied prompt! (${tokenCount} tokens)`)
+      showSuccessToast(`Copied prompt! ${formatTokenCount(tokenCount)} tokens`)
     } catch (err) {
       console.error('Failed to copy prompt:', err)
     }

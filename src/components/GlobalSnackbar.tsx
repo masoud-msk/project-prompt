@@ -7,7 +7,7 @@ import { Snackbar, Alert } from '@mui/material'
 import { useFileStore } from '../store'
 
 export default function GlobalSnackbar() {
-  const { toastOpen, toastMessage, clearToast } = useFileStore()
+  const { toastOpen, toastMessage, toastSeverity, clearToast } = useFileStore()
 
   const handleClose = (
     _event?: React.SyntheticEvent | Event,
@@ -24,7 +24,11 @@ export default function GlobalSnackbar() {
       onClose={handleClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
-      <Alert onClose={handleClose} severity="success" sx={{ width: '100%' }}>
+      <Alert
+        onClose={handleClose}
+        severity={toastSeverity}
+        sx={{ width: '100%' }}
+      >
         {toastMessage}
       </Alert>
     </Snackbar>

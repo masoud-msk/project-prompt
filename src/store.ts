@@ -4,8 +4,9 @@
 // </ai_context>
 
 import { create } from 'zustand'
-import { approximateTokens, formatTokenCount } from './utils/tokenHelpers'
 import { v4 as uuidv4 } from 'uuid'
+import type { AlertColor } from '@mui/material' // for toast severity
+import { approximateTokens, formatTokenCount } from './utils/tokenHelpers'
 
 interface FileNode {
   name: string
@@ -71,7 +72,9 @@ interface FileStoreState {
   // Toast (Snackbar)
   toastOpen: boolean
   toastMessage: string
+  toastSeverity: AlertColor
   showSuccessToast: (message: string) => void
+  showErrorToast: (message: string) => void
   clearToast: () => void
 }
 
@@ -262,14 +265,15 @@ export const useFileStore = create<FileStoreState>((set, get) => {
 
     clearSelection: () => {},
 
-    // Prompt building
     getFinalPrompt: () => '',
     getFinalPromptTokens: () => 0,
 
     // Toast
     toastOpen: false,
     toastMessage: '',
+    toastSeverity: 'success',
     showSuccessToast: () => {},
+    showErrorToast: () => {},
     clearToast: () => {},
   }
 
@@ -332,6 +336,7 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         persistFileState(get())
       } catch (err) {
         console.error('Error opening directory:', err)
+        get().showErrorToast('Failed to open directory!')
       }
     },
 
@@ -378,6 +383,7 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           return
         } catch (err) {
           console.error('Error refreshing directory:', err)
+          get().showErrorToast('Failed to refresh directory!')
         }
       }
       await get().openDirectory()
@@ -481,6 +487,7 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           })
         } catch (err) {
           console.error('Error reading file:', err)
+          get().showErrorToast(`Failed to read file: ${fileNode.path}`)
         }
       }
 
@@ -607,9 +614,24 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     // Toast (Snackbar) logic
     toastOpen: false,
     toastMessage: '',
+    toastSeverity: 'success' as AlertColor,
+
     showSuccessToast(message: string) {
-      set({ toastOpen: true, toastMessage: message })
+      set({
+        toastOpen: true,
+        toastMessage: message,
+        toastSeverity: 'success',
+      })
     },
+
+    showErrorToast(message: string) {
+      set({
+        toastOpen: true,
+        toastMessage: message,
+        toastSeverity: 'error',
+      })
+    },
+
     clearToast() {
       set({ toastOpen: false, toastMessage: '' })
     },

@@ -36,6 +36,7 @@ export default function App() {
     selectedFiles,
     openDirectory,
     clearSelection,
+    lastDirHandle,
   } = useFileStore()
 
   const handleOpenDirectory = () => {
@@ -123,7 +124,7 @@ export default function App() {
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-              Directory Structure
+              {lastDirHandle ? lastDirHandle.name : 'Directory Structure'}
             </Typography>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -203,7 +204,7 @@ export default function App() {
         </Box>
       </Box>
 
-      {/* Global Snackbar for success messages */}
+      {/* Global Snackbar for success/error messages */}
       <GlobalSnackbar />
     </Wrapper>
   )
