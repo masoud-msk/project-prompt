@@ -1,0 +1,30 @@
+{
+  "name": "repo-prompt-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^5.14.11",
+    "@mui/material": "^5.14.11",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/styled-components": "^5.1.34",
+    "@types/uuid": "^10.0.0",
+    "js-tiktoken": "^1.0.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^11.0.5",
+    "zustand": "^4.3.9"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "prettier": "^3.4.2",
+    "vite": "^5.0.0"
+  }
+}
