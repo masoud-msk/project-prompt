@@ -24,14 +24,17 @@ export const lightThemeOptions = {
       styleOverrides: {
         html: {
           height: '100%',
+          overflow: 'hidden',
         },
         body: {
           height: '100%',
           margin: 0,
           padding: 0,
+          overflow: 'hidden',
         },
         '#root': {
           height: '100%',
+          overflow: 'hidden',
         },
         /*
           Modern thin scrollbar, autohide on body + any scrollable container
@@ -95,15 +98,19 @@ export const darkThemeOptions = {
       styleOverrides: {
         html: {
           height: '100%',
+          overflow: 'hidden',
         },
         body: {
           height: '100%',
           margin: 0,
           padding: 0,
+          overflow: 'hidden',
         },
         '#root': {
           height: '100%',
+          overflow: 'hidden',
         },
+
         /*
           Modern thin scrollbar, autohide on body + any scrollable container
         */

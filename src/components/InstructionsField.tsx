@@ -4,45 +4,21 @@
 //  without opening the prompt modal.
 // </ai_context>
 
-import React, { useState } from 'react'
-import { TextField, Box, Button, Stack, FormControlLabel, Switch } from '@mui/material'
+import { useEffect, useState } from 'react'
+import {
+  TextField,
+  Box,
+  Stack,
+  FormControlLabel,
+  Switch,
+  IconButton,
+  Button,
+} from '@mui/material'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useFileStore } from '../store'
-import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
-
-// Reuse the buildLoadedFilesTreeText function from PromptGenerator or replicate here
-function buildLoadedFilesTreeText(files: { path: string }[]): string {
-  if (!files.length) return ''
-
-  // Create a nested structure
-  const root: Record<string, any> = {}
-
-  for (const f of files) {
-    const segments = f.path.split('/')
-    let current = root
-    for (const seg of segments) {
-      if (!current[seg]) {
-        current[seg] = {}
-      }
-      current = current[seg]
-    }
-  }
-
-  // Recursively print
-  function printTree(node: Record<string, any>, prefix: string): string {
-    const lines: string[] = []
-    const keys = Object.keys(node).sort()
-    for (const k of keys) {
-      lines.push(prefix + k)
-      const sub = node[k]
-      if (Object.keys(sub).length > 0) {
-        lines.push(printTree(sub, prefix + '  '))
-      }
-    }
-    return lines.join('\n')
-  }
-
-  return printTree(root, '')
-}
+import Modal from './Modal'
+import PromptGenerator from './PromptGenerator'
 
 export default function InstructionsField() {
   const {
@@ -51,58 +27,45 @@ export default function InstructionsField() {
     loadedFiles,
     customInstructions,
     includeTreeInPrompt,
-    setIncludeTreeInPrompt
+    setIncludeTreeInPrompt,
+    getFinalPrompt,
+    getFinalPromptTokens,
+    showSuccessToast,
   } = useFileStore()
 
-  const [copied, setCopied] = useState(false)
-  const [copiedTokens, setCopiedTokens] = useState(0)
+  // Local state for instructions (debounced update)
+  const [localInstructions, setLocalInstructions] = useState(instructions)
+  useEffect(() => {
+    setLocalInstructions(instructions)
+  }, [instructions])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInstructions(e.target.value)
-  }
-
-  // Build final prompt: main instructions + active custom instructions + file contents + optional tree
-  const generatePrompt = (): string => {
-    const activeCustoms = customInstructions.filter(ci => ci.isActive)
-
-    let final = instructions
-    if (activeCustoms.length > 0) {
-      final += '\n\n' + activeCustoms.map(ci => ci.content).join('\n\n')
-    }
-    if (loadedFiles.length > 0) {
-      final +=
-        '\n\n' +
-        loadedFiles
-          .map(file => `---\nFile: ${file.path}\n${file.content}`)
-          .join('\n\n')
-    }
-    if (includeTreeInPrompt && loadedFiles.length > 0) {
-      const treeText = buildLoadedFilesTreeText(loadedFiles)
-      if (treeText.trim()) {
-        final += '\n\nLOADED FILES TREE:\n' + treeText
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Update global store after 500ms
+      if (localInstructions !== instructions) {
+        setInstructions(localInstructions)
       }
-    }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [localInstructions, instructions, setInstructions])
 
-    return final
-  }
+  // Show prompt modal
+  const [showPromptModal, setShowPromptModal] = useState(false)
+  const handleOpenModal = () => setShowPromptModal(true)
+  const handleCloseModal = () => setShowPromptModal(false)
 
+  // Copy prompt
   const handleCopyPrompt = async () => {
-    const prompt = generatePrompt()
-    const tokenCount = approximateTokens(prompt)
+    const prompt = getFinalPrompt()
+    const tokenCount = getFinalPromptTokens()
 
     try {
       await navigator.clipboard.writeText(prompt)
-      setCopied(true)
-      setCopiedTokens(tokenCount)
-      setTimeout(() => setCopied(false), 2000)
+      showSuccessToast(`Copied prompt! (${tokenCount} tokens)`)
     } catch (err) {
       console.error('Failed to copy prompt:', err)
     }
   }
-
-  const copyButtonText = copied
-    ? `Copied! (${formatTokenCount(copiedTokens)} tokens)`
-    : 'Copy Prompt'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -112,28 +75,43 @@ export default function InstructionsField() {
         fullWidth
         multiline
         rows={6}
-        value={instructions}
-        onChange={handleChange}
+        value={localInstructions}
+        onChange={e => setLocalInstructions(e.target.value)}
         placeholder="Add your instructions here..."
         variant="outlined"
       />
 
-      {/* Row: Switch + Copy Prompt Button */}
+      {/* Row: Switch + Copy Prompt Button + Show Prompt Button */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <FormControlLabel
           control={
             <Switch
               checked={includeTreeInPrompt}
-              onChange={(e) => setIncludeTreeInPrompt(e.target.checked)}
+              onChange={e => setIncludeTreeInPrompt(e.target.checked)}
             />
           }
           label="Add files tree structure"
         />
 
-        <Button variant="contained" color="primary" onClick={handleCopyPrompt}>
-          {copyButtonText}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <IconButton color="inherit" onClick={handleCopyPrompt}>
+            <ContentCopyIcon />
+          </IconButton>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<VisibilityIcon />}
+            onClick={handleOpenModal}
+          >
+            Full Prompt
+          </Button>
+        </Stack>
       </Stack>
+
+      {/* Prompt Modal */}
+      <Modal show={showPromptModal} onClose={handleCloseModal}>
+        <PromptGenerator />
+      </Modal>
     </Box>
   )
 }

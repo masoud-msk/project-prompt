@@ -1,8 +1,10 @@
+/*
 // <ai_context>
 //  Renders the nested directory structure using MUI icons and checkboxes.
 //  Also uses Material icons for folder/file and expand/collapse indicators.
 //  We decreased the margin/padding between rows further.
 // </ai_context>
+*/
 
 import { useState } from 'react'
 import { Box, Checkbox, IconButton, Typography, Tooltip } from '@mui/material'
@@ -24,15 +26,20 @@ interface FileNode {
 
 export default function DirectoryTree() {
   const { fileTree, toggleSelection } = useFileStore()
-  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
-    {},
-  )
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
 
   const handleExpandToggle = (path: string) => {
     setExpandedNodes(prev => ({
       ...prev,
       [path]: !prev[path],
     }))
+  }
+
+  // Helper to see if any descendant is selected:
+  function someDescendantSelected(node: FileNode): boolean {
+    if (node.selected) return true
+    if (!node.isDirectory) return false
+    return node.children?.some(child => someDescendantSelected(child)) ?? false
   }
 
   const renderTree = (nodes: FileNode[]) => {
@@ -43,6 +50,11 @@ export default function DirectoryTree() {
       const handleCheckboxChange = () => {
         toggleSelection(node.path, node.handle, isFolder)
       }
+
+      // Indeterminate means this folder is not selected,
+      // but at least one child (somewhere below) is selected.
+      const indeterminate =
+        !node.selected && isFolder && someDescendantSelected(node)
 
       return (
         <NodeBox key={node.path}>
@@ -69,6 +81,7 @@ export default function DirectoryTree() {
             <Checkbox
               size="small"
               checked={node.selected}
+              indeterminate={indeterminate}
               onChange={handleCheckboxChange}
               sx={{ mr: 1 }}
             />
