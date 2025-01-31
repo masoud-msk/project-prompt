@@ -1,19 +1,17 @@
-/*
+
 // <ai_context>
 //  Renders the nested directory structure using MUI icons and checkboxes.
 //  Also uses Material icons for folder/file and expand/collapse indicators.
-//  We decreased the margin/padding between rows further.
 // </ai_context>
-*/
 
 import { useState } from 'react'
-import { Box, Checkbox, IconButton, Typography, Tooltip } from '@mui/material'
-import { styled as muiStyled } from '@mui/material/styles'
+import { Checkbox, IconButton, Typography, Box } from '@mui/material'
+import { styled } from '@mui/material/styles'
 import FolderIcon from '@mui/icons-material/Folder'
 import DescriptionIcon from '@mui/icons-material/Description'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import { useFileStore } from '../store'
+import { useFileStore } from '../store/fileStore'
 
 interface FileNode {
   name: string
@@ -24,20 +22,31 @@ interface FileNode {
   children?: FileNode[]
 }
 
+const NodeBox = styled(Box)(() => ({
+  marginBottom: '1px'
+}))
+
+const RowBox = styled(Box)(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  marginBottom: '2px'
+}))
+
+const IndentBox = styled(Box)(() => ({
+  marginLeft: '1.2rem'
+}))
+
 export default function DirectoryTree() {
   const { fileTree, toggleSelection } = useFileStore()
-  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
-    {},
-  )
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({})
 
   const handleExpandToggle = (path: string) => {
     setExpandedNodes(prev => ({
       ...prev,
-      [path]: !prev[path],
+      [path]: !prev[path]
     }))
   }
 
-  // Helper to see if any descendant is selected:
   function someDescendantSelected(node: FileNode): boolean {
     if (node.selected) return true
     if (!node.isDirectory) return false
@@ -53,8 +62,6 @@ export default function DirectoryTree() {
         toggleSelection(node.path, node.handle, isFolder)
       }
 
-      // Indeterminate means this folder is not selected,
-      // but at least one child (somewhere below) is selected.
       const indeterminate =
         !node.selected && isFolder && someDescendantSelected(node)
 
@@ -93,10 +100,9 @@ export default function DirectoryTree() {
 
             <Typography variant="body2">{node.name}</Typography>
           </RowBox>
-          {isFolder &&
-            node.children &&
-            node.children.length > 0 &&
-            isExpanded && <IndentBox>{renderTree(node.children)}</IndentBox>}
+          {isFolder && node.children && node.children.length > 0 && isExpanded && (
+            <IndentBox>{renderTree(node.children)}</IndentBox>
+          )}
         </NodeBox>
       )
     })
@@ -104,17 +110,3 @@ export default function DirectoryTree() {
 
   return <Box>{renderTree(fileTree)}</Box>
 }
-
-const NodeBox = muiStyled(Box)(() => ({
-  marginBottom: '1px', // Slightly smaller spacing
-}))
-
-const RowBox = muiStyled(Box)(() => ({
-  display: 'flex',
-  alignItems: 'center',
-  marginBottom: '2px',
-}))
-
-const IndentBox = muiStyled(Box)(() => ({
-  marginLeft: '1.2rem',
-}))

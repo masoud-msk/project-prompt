@@ -8,12 +8,12 @@
 import { useState } from 'react'
 import { Box, Tooltip, Typography, IconButton, Paper, Stack } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
-import { useFileStore } from '../store'
-import CustomInstructionsModal from './CustomInstructionsModal'
+import { useCustomInstructionsStore } from '../store/customInstructionsStore'
+import CustomInstructionsModal from './modals/CustomInstructionsModal'
 import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
 
 export default function CustomInstructionsBar() {
-  const { customInstructions, toggleCustomInstruction } = useFileStore()
+  const { customInstructions, toggleCustomInstruction } = useCustomInstructionsStore()
   const [modalOpen, setModalOpen] = useState(false)
 
   const handleToggle = (id: string) => {
@@ -47,8 +47,6 @@ export default function CustomInstructionsBar() {
         {customInstructions.map(ci => {
           const truncated =
             ci.content.length > 60 ? ci.content.slice(0, 60) + '...' : ci.content
-
-          // Show token count in short format
           const tokenCount = approximateTokens(ci.content)
           const label = `${ci.name} (${formatTokenCount(tokenCount)} T)`
 
@@ -62,7 +60,7 @@ export default function CustomInstructionsBar() {
                   borderRadius: 1,
                   cursor: 'pointer',
                   backgroundColor: ci.isActive ? 'primary.light' : 'inherit',
-                  minWidth: 'max-content',
+                  minWidth: 'max-content'
                 }}
                 onClick={() => handleToggle(ci.id)}
               >

@@ -1,18 +1,16 @@
+
 // <ai_context>
-//  A global snackbar that listens to the file store's toast state and displays a success message.
+//  A global snackbar that listens to the file store's toast state and displays a success/error message.
 // </ai_context>
 
 import React from 'react'
 import { Snackbar, Alert } from '@mui/material'
-import { useFileStore } from '../store'
+import { useToastStore } from '../store/toastStore'
 
 export default function GlobalSnackbar() {
-  const { toastOpen, toastMessage, toastSeverity, clearToast } = useFileStore()
+  const { toastOpen, toastMessage, toastSeverity, clearToast } = useToastStore()
 
-  const handleClose = (
-    _event?: React.SyntheticEvent | Event,
-    reason?: string,
-  ) => {
+  const handleClose = (_event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return
     clearToast()
   }
@@ -24,11 +22,7 @@ export default function GlobalSnackbar() {
       onClose={handleClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
-      <Alert
-        onClose={handleClose}
-        severity={toastSeverity}
-        sx={{ width: '100%' }}
-      >
+      <Alert onClose={handleClose} severity={toastSeverity} sx={{ width: '100%' }}>
         {toastMessage}
       </Alert>
     </Snackbar>

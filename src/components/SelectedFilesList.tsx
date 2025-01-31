@@ -1,11 +1,11 @@
+
 // <ai_context>
-//  Displays the loaded files and their calculated token counts.
-//  Enhanced with MUI components, making the list scrollable in the parent container.
+//  Displays the loaded files and their token counts in a scrollable list.
 // </ai_context>
 
 import React from 'react'
 import { Typography, Box, Paper } from '@mui/material'
-import { useFileStore } from '../store'
+import { useFileStore } from '../store/fileStore'
 import { formatTokenCount } from '../utils/tokenHelpers'
 
 export default function SelectedFilesList() {

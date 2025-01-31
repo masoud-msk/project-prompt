@@ -1,13 +1,12 @@
-
 /*
 // <ai_context>
 //  Main application component, fully using MUI for layout.
 //  1) Full height usage
-//  2) "CustomInstructionsBar" is placed above "InstructionsField", not in the top AppBar
-//  3) The top bar just has "Repo Prompt", "Load", "Prompt"
+//  2) "CustomInstructionsBar" is placed above "InstructionsField"
+//  3) The top bar just has "Project Prompt" and "Apply Changes"
 //  4) "Open" but remove "Refresh" from Directory Structure panel
-// </ai_context>
-*/
+//  5) If we have lastOpenedDirectoryPath, show "Reopen last folder" at top
+// */
 
 import {
   AppBar,
@@ -16,24 +15,29 @@ import {
   Box,
   Button,
   Container,
-  Stack,
   IconButton,
   Tooltip,
 } from '@mui/material'
-import { styled as muiStyled } from '@mui/material/styles'
+import { styled } from '@mui/material/styles'
 import DownloadIcon from '@mui/icons-material/Download'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ClearIcon from '@mui/icons-material/Clear'
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt'
 import { useState, useEffect } from 'react'
-import { useFileStore } from './store'
+import { useFileStore } from './store/fileStore'
 import DirectoryTree from './components/DirectoryTree'
 import InstructionsField from './components/InstructionsField'
 import IgnoreInput from './components/IgnoreInput'
 import SelectedFilesList from './components/SelectedFilesList'
 import CustomInstructionsBar from './components/CustomInstructionsBar'
 import GlobalSnackbar from './components/GlobalSnackbar'
-import ApplyChangesModal from './components/ApplyChangesModal'
+import ApplyChangesModal from './components/modals/ApplyChangesModal'
+
+const Wrapper = styled(Container)(() => ({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+}))
 
 export default function App() {
   const {
@@ -44,11 +48,10 @@ export default function App() {
     clearSelection,
     lastDirHandle,
     refreshDirectory,
-    rootDirectoryPath,
+    lastOpenedDirectoryPath,
   } = useFileStore()
 
-  // If we have a handle, just refresh on mount.
-  // But if we do NOT have a handle, we can show a "Reopen last folder" button below instead
+  // If we have a handle, refresh on mount
   useEffect(() => {
     if (lastDirHandle) {
       refreshDirectory()
@@ -98,7 +101,7 @@ export default function App() {
               color="primary"
               startIcon={<SystemUpdateAltIcon />}
               onClick={openChangesModal}
-              disabled={!lastDirHandle} 
+              disabled={!lastDirHandle}
             >
               Apply Changes
             </Button>
@@ -168,14 +171,11 @@ export default function App() {
             </Box>
           </Box>
 
-          {/* If we don't have a handle, but do have rootDirectoryPath, show "Reopen last folder" */}
-          {!lastDirHandle && rootDirectoryPath && (
+          {/* If we don't have a directory handle, but do have lastOpenedDirectoryPath, show "Reopen last folder" */}
+          {!lastDirHandle && lastOpenedDirectoryPath && (
             <Box sx={{ p: 1 }}>
-              <Button
-                variant="outlined"
-                onClick={handleOpenDirectory}
-              >
-                (!)&nbsp;Reopen last folder: {rootDirectoryPath}
+              <Button variant="outlined" onClick={handleOpenDirectory}>
+                (!)&nbsp;Reopen last folder: {lastOpenedDirectoryPath}
               </Button>
             </Box>
           )}
@@ -273,9 +273,3 @@ export default function App() {
     </Wrapper>
   )
 }
-
-const Wrapper = muiStyled(Container)(() => ({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-}))

@@ -1,3 +1,4 @@
+
 // <ai_context>
 //  A modal for creating/editing custom instructions. Allows adding new instructions,
 //  editing existing ones, and removing them if needed. All stored in localStorage via the store.
@@ -17,26 +18,44 @@ import {
   Stack,
   Typography,
   ListItemSecondaryAction,
-  Tooltip,
+  Tooltip
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { useFileStore } from '../store'
-import { approximateTokens, formatTokenCount } from '../utils/tokenHelpers'
+import { styled } from '@mui/material/styles'
+import { useCustomInstructionsStore } from '../../store/customInstructionsStore'
+import { approximateTokens, formatTokenCount } from '../../utils/tokenHelpers'
 
 interface Props {
   open: boolean
   onClose: () => void
 }
 
+const StyledDialogTitle = styled(DialogTitle)(() => ({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center'
+}))
+
+const ModalContent = styled(Box)(() => ({
+  paddingLeft: 24,
+  paddingRight: 24,
+  paddingBottom: 24,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+  minHeight: '400px',
+  maxHeight: '70vh'
+}))
+
 export default function CustomInstructionsModal({ open, onClose }: Props) {
   const {
     customInstructions,
     addCustomInstruction,
     updateCustomInstruction,
-    removeCustomInstruction,
-  } = useFileStore()
+    removeCustomInstruction
+  } = useCustomInstructionsStore()
 
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -79,42 +98,26 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
+      <StyledDialogTitle>
         Manage Custom Instructions
         <Tooltip title="Close">
           <IconButton onClick={handleClose}>
             <CloseIcon />
           </IconButton>
         </Tooltip>
-      </DialogTitle>
+      </StyledDialogTitle>
 
-      <Box
-        sx={{
-          px: 3,
-          pb: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          minHeight: '400px',
-          maxHeight: '70vh',
-        }}
-      >
+      <ModalContent>
         {/* Existing Instructions */}
         <Box
           sx={{
             flex: 1,
             overflowY: 'auto',
-            overflowX: 'hidden' /* remove horizontal overflow */,
+            overflowX: 'hidden',
             border: 1,
             borderColor: 'divider',
             borderRadius: 1,
-            p: 0,
+            p: 0
           }}
         >
           {customInstructions.length === 0 && (
@@ -187,7 +190,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
             {isEditing ? 'Update Instruction' : 'Add Instruction'}
           </Button>
         </Stack>
-      </Box>
+      </ModalContent>
     </Dialog>
   )
 }

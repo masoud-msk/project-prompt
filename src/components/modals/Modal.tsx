@@ -4,8 +4,9 @@
 // </ai_context>
 
 import React from 'react'
-import { Box, Dialog, IconButton, Tooltip } from '@mui/material'
+import { Dialog, IconButton, Tooltip, Box } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import { styled } from '@mui/material/styles'
 
 interface ModalProps {
   show: boolean
@@ -13,25 +14,29 @@ interface ModalProps {
   children?: React.ReactNode
 }
 
+const ModalContainer = styled(Box)(() => ({
+  position: 'relative',
+  padding: 16,
+  minHeight: '400px'
+}))
+
+const CloseButton = styled(IconButton)(() => ({
+  position: 'absolute',
+  right: 8,
+  top: 8
+}))
+
 export default function Modal({ show, onClose, children }: ModalProps) {
   return (
     <Dialog open={show} onClose={onClose} maxWidth="md" fullWidth>
-      <Box sx={{ position: 'relative', p: 2, minHeight: '400px' }}>
+      <ModalContainer>
         <Tooltip title="Close">
-          <IconButton
-            aria-label="close"
-            onClick={onClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8
-            }}
-          >
+          <CloseButton aria-label="close" onClick={onClose}>
             <CloseIcon />
-          </IconButton>
+          </CloseButton>
         </Tooltip>
         {children}
-      </Box>
+      </ModalContainer>
     </Dialog>
   )
 }

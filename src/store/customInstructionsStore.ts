@@ -1,0 +1,64 @@
+
+// <ai_context>
+//  Manages the list of custom instructions, each with its own ID, name, content, and isActive.
+// </ai_context>
+
+import { v4 as uuidv4 } from 'uuid'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+export interface CustomInstruction {
+  id: string
+  name: string
+  content: string
+  isActive: boolean
+}
+
+interface CustomInstructionsState {
+  customInstructions: CustomInstruction[]
+  addCustomInstruction: (name: string, content: string) => void
+  updateCustomInstruction: (id: string, name: string, content: string) => void
+  removeCustomInstruction: (id: string) => void
+  toggleCustomInstruction: (id: string) => void
+}
+
+export const useCustomInstructionsStore = create<CustomInstructionsState>()(
+  persist(
+    (set, get) => ({
+      customInstructions: [],
+
+      addCustomInstruction: (name, content) => {
+        const newCI = {
+          id: uuidv4(),
+          name,
+          content,
+          isActive: true
+        }
+        const updated = [...get().customInstructions, newCI]
+        set({ customInstructions: updated })
+      },
+
+      updateCustomInstruction: (id, name, content) => {
+        const updated = get().customInstructions.map(ci =>
+          ci.id === id ? { ...ci, name, content } : ci
+        )
+        set({ customInstructions: updated })
+      },
+
+      removeCustomInstruction: (id) => {
+        const updated = get().customInstructions.filter(ci => ci.id !== id)
+        set({ customInstructions: updated })
+      },
+
+      toggleCustomInstruction: (id) => {
+        const updated = get().customInstructions.map(ci =>
+          ci.id === id ? { ...ci, isActive: !ci.isActive } : ci
+        )
+        set({ customInstructions: updated })
+      }
+    }),
+    {
+      name: 'custom-instructions-store'
+    }
+  )
+)

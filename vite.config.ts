@@ -1,3 +1,4 @@
+
 // <ai_context>
 //  Vite configuration file for React project with plugin-react.
 // </ai_context>

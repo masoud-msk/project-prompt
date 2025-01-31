@@ -1,3 +1,4 @@
+
 // <ai_context>
 //  Defines two themes (light and dark) for styled-components.
 //  Now includes inputBg for textareas/inputs in dark/light modes.

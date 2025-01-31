@@ -1,7 +1,7 @@
+
 // <ai_context>
 //  A text area for the user's instructions that will be appended to the final prompt.
-//  Now includes a "Copy Prompt" button at the bottom to copy the entire prompt content
-//  without opening the prompt modal.
+//  Includes a "Copy Prompt" button at the bottom to copy the entire prompt content.
 // </ai_context>
 
 import { useEffect, useState } from 'react'
@@ -12,30 +12,25 @@ import {
   FormControlLabel,
   Switch,
   IconButton,
-  Button,
+  Button
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { useFileStore } from '../store'
-import Modal from './Modal'
+import { useInstructionsStore } from '../store/instructionsStore'
+import { useFileStore } from '../store/fileStore'
+import { useToastStore } from '../store/toastStore'
+import Modal from './modals/Modal'
 import PromptGenerator from './PromptGenerator'
 import { formatTokenCount } from '../utils/tokenHelpers'
 
 export default function InstructionsField() {
-  const {
-    instructions,
-    setInstructions,
-    loadedFiles,
-    customInstructions,
-    includeTreeInPrompt,
-    setIncludeTreeInPrompt,
-    getFinalPrompt,
-    getFinalPromptTokens,
-    showSuccessToast,
-  } = useFileStore()
+  const { instructions, setInstructions, getFinalPrompt, getFinalPromptTokens } =
+    useInstructionsStore()
+  const { includeTreeInPrompt, setIncludeTreeInPrompt, loadedFiles } = useFileStore()
+  const { showSuccessToast } = useToastStore()
 
-  // Local state for instructions (debounced update)
   const [localInstructions, setLocalInstructions] = useState(instructions)
+
   useEffect(() => {
     setLocalInstructions(instructions)
   }, [instructions])
@@ -49,10 +44,8 @@ export default function InstructionsField() {
     return () => clearTimeout(timer)
   }, [localInstructions, instructions, setInstructions])
 
-  // Show prompt modal
   const [showPromptModal, setShowPromptModal] = useState(false)
   const handleOpenModal = () => {
-    // Sync latest local instructions into the store
     if (localInstructions !== instructions) {
       setInstructions(localInstructions)
     }
@@ -60,15 +53,12 @@ export default function InstructionsField() {
   }
   const handleCloseModal = () => setShowPromptModal(false)
 
-  // Copy prompt
   const handleCopyPrompt = async () => {
-    // Sync latest local instructions into the store
     if (localInstructions !== instructions) {
       setInstructions(localInstructions)
     }
-
-    const prompt = getFinalPrompt()
-    const tokenCount = getFinalPromptTokens()
+    const prompt = getFinalPrompt(loadedFiles, [], includeTreeInPrompt)
+    const tokenCount = getFinalPromptTokens(loadedFiles, [], includeTreeInPrompt)
 
     try {
       await navigator.clipboard.writeText(prompt)
@@ -80,7 +70,6 @@ export default function InstructionsField() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-      {/* MAIN INSTRUCTIONS TEXT FIELD */}
       <TextField
         label="Instructions"
         fullWidth
@@ -92,7 +81,6 @@ export default function InstructionsField() {
         variant="outlined"
       />
 
-      {/* Row: Switch + Copy Prompt Button + Show Prompt Button */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <FormControlLabel
           control={
@@ -119,8 +107,8 @@ export default function InstructionsField() {
         </Stack>
       </Stack>
 
-      {/* Prompt Modal */}
       <Modal show={showPromptModal} onClose={handleCloseModal}>
+        {/* We'll pass needed data to PromptGenerator */}
         <PromptGenerator />
       </Modal>
     </Box>

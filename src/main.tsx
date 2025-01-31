@@ -1,17 +1,18 @@
+
 // <ai_context>
 //  Main entry point for the React app. Renders App component into #root.
-//  Now uses MUI's ThemeProvider with a custom light/dark theme based on Zustand store.
+//  Now uses MUI's ThemeProvider with a custom light/dark theme from new theme store.
 // </ai_context>
 
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { useThemeStore } from './store'
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material'
 import { lightThemeOptions, darkThemeOptions } from './muiTheme'
+import { useThemeStore } from './store/themeStore'
 
 function Root() {
-  const themeMode = useThemeStore((state) => state.themeMode)
+  const { themeMode } = useThemeStore()
 
   const theme = React.useMemo(() => {
     return createTheme(themeMode === 'light' ? lightThemeOptions : darkThemeOptions)
@@ -25,6 +26,6 @@ function Root() {
   )
 }
 
-const container = document.getElementById('root')
-const root = createRoot(container!)
+const container = document.getElementById('root')!
+const root = createRoot(container)
 root.render(<Root />)
