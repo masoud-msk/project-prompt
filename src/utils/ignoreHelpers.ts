@@ -9,7 +9,6 @@ export function isIgnored(path: string, ignoreLines: string[]): boolean {
     const pattern = line.trim()
     if (!pattern) return false
 
-    // console.log('>>>>> isIgnored:', { path, pattern })
     return minimatch(path, pattern, { dot: true })
   })
 }

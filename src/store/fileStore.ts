@@ -327,7 +327,6 @@ export const useFileStore = create<FileStoreState>()(
         for (const fileNode of selectedFiles) {
           if (fileNode.isDirectory) continue
           const ignored = isIgnored(fileNode.path, ignoreLines)
-          console.log({ path: fileNode.path, ignored })
 
           if (ignored) continue
           if (!fileNode.handle) continue
