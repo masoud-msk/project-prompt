@@ -21,7 +21,11 @@ export default function IgnoreInput() {
       rows={4}
       value={ignorePatterns}
       onChange={handleChange}
-      placeholder="Uses glob patterns to ignore matched files or directories"
+      placeholder={`Uses glob patterns
+      
+dist/**
+yarn.lock
+`}
       variant="outlined"
     />
   )
