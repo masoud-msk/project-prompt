@@ -1,3 +1,4 @@
+
 /*
 // <ai_context>
 //  Main application component, fully using MUI for layout.
@@ -43,14 +44,15 @@ export default function App() {
     clearSelection,
     lastDirHandle,
     refreshDirectory,
+    rootDirectoryPath,
   } = useFileStore()
 
-  // Effect to automatically re-open (refresh) the last directory on reload
+  // If we have a handle, just refresh on mount.
+  // But if we do NOT have a handle, we can show a "Reopen last folder" button below instead
   useEffect(() => {
     if (lastDirHandle) {
       refreshDirectory()
     }
-    // We only call refreshDirectory() once on mount if lastDirHandle exists
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -96,6 +98,7 @@ export default function App() {
               color="primary"
               startIcon={<SystemUpdateAltIcon />}
               onClick={openChangesModal}
+              disabled={!lastDirHandle} 
             >
               Apply Changes
             </Button>
@@ -165,12 +168,38 @@ export default function App() {
             </Box>
           </Box>
 
+          {/* If we don't have a handle, but do have rootDirectoryPath, show "Reopen last folder" */}
+          {!lastDirHandle && rootDirectoryPath && (
+            <Box sx={{ p: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handleOpenDirectory}
+              >
+                (!)&nbsp;Reopen last folder: {rootDirectoryPath}
+              </Button>
+            </Box>
+          )}
+
           {/* Tree content (fills remaining space) */}
-          <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
+          <Box sx={{ flex: 1, position: 'relative', overflowY: 'auto', p: 1 }}>
             {fileTree.length === 0 ? (
               <Typography variant="body2">No directory opened yet.</Typography>
             ) : (
               <DirectoryTree />
+            )}
+            {/* Dark overlay if no directory handle */}
+            {!lastDirHandle && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.4)',
+                  zIndex: 10,
+                }}
+              />
             )}
           </Box>
 
@@ -190,7 +219,7 @@ export default function App() {
               color="primary"
               startIcon={<DownloadIcon />}
               onClick={loadSelectedFiles}
-              disabled={selectedFiles.length === 0}
+              disabled={!lastDirHandle || selectedFiles.length === 0}
             >
               Load Files
             </Button>

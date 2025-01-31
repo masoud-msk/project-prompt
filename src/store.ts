@@ -1,7 +1,8 @@
-/* Keep existing content, only injecting the new function. */
+
 // <ai_context>
 //  Zustand store for managing file selection, ignoring patterns, instructions, theme, etc.
 //  Now includes localStorage persistence for file store and theme store, with default 'dark' theme.
+//  Updated to store and restore the root directory name in localStorage via 'rootDirectoryPath'.
 // </ai_context>
 
 import { create } from 'zustand'
@@ -38,7 +39,11 @@ interface FileStoreState {
   instructions: string
   ignorePatterns: string
 
+  // The last directory handle in memory (not stored in localStorage)
   lastDirHandle: any | null
+
+  // The name of the opened root directory (stored in localStorage)
+  rootDirectoryPath: string | null
 
   // Custom instructions
   customInstructions: CustomInstruction[]
@@ -92,8 +97,9 @@ async function buildFileTree(
     if (
       entry.kind === 'directory' &&
       (entry.name === '.git' || entry.name === 'node_modules')
-    )
+    ) {
       continue
+    }
 
     const path = currentPath ? `${currentPath}/${entry.name}` : entry.name
     if (entry.kind === 'directory') {
@@ -153,9 +159,10 @@ function persistFileState(state: FileStoreState) {
     instructions,
     ignorePatterns,
     customInstructions,
-    lastDirHandle,
+    // We'll keep lastDirHandle as null in storage, as we can't serialize it
     includeTreeInPrompt,
     persistedSelectedFilePaths,
+    rootDirectoryPath,
   } = state
 
   const newTree = stripHandlesFromTree(fileTree)
@@ -171,6 +178,8 @@ function persistFileState(state: FileStoreState) {
     lastDirHandle: null, // can't store real handle
     includeTreeInPrompt,
     persistedSelectedFilePaths,
+    // Save the name of the root directory so we can attempt to reopen it.
+    rootDirectoryPath,
   }
   localStorage.setItem('fileStoreData', JSON.stringify(storeObj))
 }
@@ -214,7 +223,6 @@ function buildAsciiTree(paths: string[]): string {
     entries.forEach((key, index) => {
       const child = obj[key]
       const childIsLast = index === entries.length - 1
-      const branch = isLast ? '   ' : '│  '
       const lineSymbol = childIsLast ? '└── ' : '├── '
       output += prefix + lineSymbol + key + '\n'
       const subPrefix = prefix + (childIsLast ? '   ' : '│  ')
@@ -238,6 +246,9 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     instructions: '',
     ignorePatterns: '',
     lastDirHandle: null,
+
+    // New field: store just the directory name of the last opened folder
+    rootDirectoryPath: null,
 
     customInstructions: [],
 
@@ -294,7 +305,8 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       try {
         const dirHandle = await window.showDirectoryPicker()
         const tree = await buildFileTree(dirHandle)
-        // Reselect nodes that were previously selected
+
+        // Reselect previously selected paths if any
         const reselectTree = (nodes: FileNode[]): FileNode[] => {
           return nodes.map(node => {
             const newNode = { ...node }
@@ -323,12 +335,15 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         }
         gatherSelected(updatedTree)
 
+        // Update store with newly opened handle and directory name
         set({
           fileTree: updatedTree,
           selectedFiles: newSelected,
           loadedFiles: [],
           lastDirHandle: dirHandle,
+          rootDirectoryPath: dirHandle.name || null, // Store the folder name
         })
+
         persistFileState(get())
       } catch (err) {
         console.error('Error opening directory:', err)
@@ -337,11 +352,12 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     },
 
     async refreshDirectory() {
-      const { lastDirHandle } = get()
+      const { lastDirHandle, rootDirectoryPath } = get()
       if (lastDirHandle) {
+        // We already have a handle in memory, just rebuild the tree
         try {
           const tree = await buildFileTree(lastDirHandle)
-          // Reselect nodes that were previously selected
+
           const reselectTree = (nodes: FileNode[]): FileNode[] => {
             return nodes.map(node => {
               const newNode = { ...node }
@@ -356,7 +372,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           }
           const updatedTree = reselectTree(tree)
 
-          // Gather the newly reselected
           const newSelected: FileNode[] = []
           const gatherSelected = (nodes: FileNode[]) => {
             nodes.forEach(n => {
@@ -376,13 +391,17 @@ export const useFileStore = create<FileStoreState>((set, get) => {
             loadedFiles: [],
           })
           persistFileState(get())
-          return
         } catch (err) {
           console.error('Error refreshing directory:', err)
           get().showErrorToast('Failed to refresh directory!')
         }
+      } else {
+        // No handle in memory, but we might have a saved directory name
+        if (rootDirectoryPath) {
+          // Attempt to open it again (will prompt user to confirm)
+          await get().openDirectory()
+        }
       }
-      await get().openDirectory()
     },
 
     toggleSelection(path: string, handle: any, isDirectory: boolean) {
