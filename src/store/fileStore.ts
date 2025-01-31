@@ -5,9 +5,9 @@
 // </ai_context>
 
 import { create } from 'zustand'
-import wcmatch from 'wildcard-match'
 import { persist } from 'zustand/middleware'
 import { approximateTokens } from '../utils/tokenHelpers'
+import { isIgnored } from '../utils/ignoreHelpers'
 
 interface FileNode {
   name: string
@@ -56,7 +56,6 @@ async function buildFileTree(
   for await (const entry of directoryHandle.values()) {
     const path = currentPath ? `${currentPath}/${entry.name}` : entry.name
     if (entry.kind === 'directory') {
-      // Skip typical large/ignored folders so we don't blow up performance
       if (entry.name === '.git' || entry.name === 'node_modules') {
         continue
       }
@@ -81,7 +80,6 @@ async function buildFileTree(
     }
   }
 
-  // Sort: directories first, then alphabetical
   items.sort((a, b) => {
     if (a.isDirectory && !b.isDirectory) return -1
     if (!a.isDirectory && b.isDirectory) return 1
@@ -89,16 +87,6 @@ async function buildFileTree(
   })
 
   return items
-}
-
-function isIgnored(path: string, ignoreLines: string[]): boolean {
-  return ignoreLines.some(line => {
-    const pattern = line.trim()
-    if (!pattern) return false
-
-    const matchFn = wcmatch(pattern, { separator: false })
-    return matchFn(path)
-  })
 }
 
 async function getDirectoryHandleRecursive(
@@ -153,7 +141,6 @@ export const useFileStore = create<FileStoreState>()(
           const dirHandle = await window.showDirectoryPicker()
           const tree = await buildFileTree(dirHandle)
 
-          // Reselect persisted selection
           const pPaths = get().persistedSelectedFilePaths
           const reselectTree = (nodes: FileNode[]): FileNode[] => {
             return nodes.map(node => {
@@ -169,7 +156,6 @@ export const useFileStore = create<FileStoreState>()(
           }
           const updatedTree = reselectTree(tree)
 
-          // Gather newly selected
           const newSelected: FileNode[] = []
           const gatherSelected = (nodes: FileNode[]) => {
             nodes.forEach(n => {
@@ -340,7 +326,10 @@ export const useFileStore = create<FileStoreState>()(
 
         for (const fileNode of selectedFiles) {
           if (fileNode.isDirectory) continue
-          if (isIgnored(fileNode.path, ignoreLines)) continue
+          const ignored = isIgnored(fileNode.path, ignoreLines)
+          console.log({ path: fileNode.path, ignored })
+
+          if (ignored) continue
           if (!fileNode.handle) continue
 
           try {
@@ -361,12 +350,11 @@ export const useFileStore = create<FileStoreState>()(
       },
     }),
     {
-      name: 'file-store', // name of item in storage
-      // We only store the fields we can safely serialize
+      name: 'file-store',
       partialize: state => ({
         fileTree: state.fileTree.map(n => ({
           ...n,
-          handle: null, // do not persist handles
+          handle: null,
         })),
         selectedFiles: state.selectedFiles.map(n => ({
           ...n,

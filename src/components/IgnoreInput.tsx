@@ -1,4 +1,3 @@
-
 // <ai_context>
 //  A text area for ignore patterns (like .gitignore). Each line is a substring to exclude files/folders.
 // </ai_context>
@@ -22,11 +21,7 @@ export default function IgnoreInput() {
       rows={4}
       value={ignorePatterns}
       onChange={handleChange}
-      placeholder={`node_modules
-.git
-*.log
-dist
-`}
+      placeholder="Uses glob patterns to ignore matched files or directories"
       variant="outlined"
     />
   )

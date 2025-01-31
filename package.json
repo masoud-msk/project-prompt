@@ -18,11 +18,11 @@
     "@types/styled-components": "^5.1.34",
     "@types/uuid": "^10.0.0",
     "js-tiktoken": "^1.0.7",
+    "minimatch": "^9.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "uuid": "^11.0.5",
-    "zustand": "^4.3.9",
-    "wildcard-match": "^1.0.0"
+    "zustand": "^4.3.9"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
