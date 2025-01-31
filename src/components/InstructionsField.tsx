@@ -42,7 +42,6 @@ export default function InstructionsField() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Update global store after 500ms
       if (localInstructions !== instructions) {
         setInstructions(localInstructions)
       }
@@ -52,11 +51,22 @@ export default function InstructionsField() {
 
   // Show prompt modal
   const [showPromptModal, setShowPromptModal] = useState(false)
-  const handleOpenModal = () => setShowPromptModal(true)
+  const handleOpenModal = () => {
+    // Sync latest local instructions into the store
+    if (localInstructions !== instructions) {
+      setInstructions(localInstructions)
+    }
+    setShowPromptModal(true)
+  }
   const handleCloseModal = () => setShowPromptModal(false)
 
   // Copy prompt
   const handleCopyPrompt = async () => {
+    // Sync latest local instructions into the store
+    if (localInstructions !== instructions) {
+      setInstructions(localInstructions)
+    }
+
     const prompt = getFinalPrompt()
     const tokenCount = getFinalPromptTokens()
 

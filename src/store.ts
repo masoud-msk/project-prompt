@@ -9,6 +9,7 @@ import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 import type { AlertColor } from '@mui/material' // for toast severity
 import { approximateTokens, formatTokenCount } from './utils/tokenHelpers'
+import { wildcard } from 'wildcard-match'
 
 interface FileNode {
   name: string
@@ -136,7 +137,8 @@ function isIgnored(path: string, ignoreLines: string[]): boolean {
   return ignoreLines.some(line => {
     const pattern = line.trim()
     if (!pattern) return false
-    return path.includes(pattern)
+    const matchFn = wildcard(pattern, { separator: false })
+    return matchFn(path)
   })
 }
 
@@ -159,7 +161,6 @@ function persistFileState(state: FileStoreState) {
     instructions,
     ignorePatterns,
     customInstructions,
-    // We'll keep lastDirHandle as null in storage, as we can't serialize it
     includeTreeInPrompt,
     persistedSelectedFilePaths,
     rootDirectoryPath,
@@ -178,7 +179,6 @@ function persistFileState(state: FileStoreState) {
     lastDirHandle: null, // can't store real handle
     includeTreeInPrompt,
     persistedSelectedFilePaths,
-    // Save the name of the root directory so we can attempt to reopen it.
     rootDirectoryPath,
   }
   localStorage.setItem('fileStoreData', JSON.stringify(storeObj))
@@ -246,41 +246,30 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     instructions: '',
     ignorePatterns: '',
     lastDirHandle: null,
-
-    // New field: store just the directory name of the last opened folder
     rootDirectoryPath: null,
-
     customInstructions: [],
-
     includeTreeInPrompt: false,
     setIncludeTreeInPrompt: () => {},
-
     persistedSelectedFilePaths: [],
-
     openDirectory: async () => {},
     refreshDirectory: async () => {},
     toggleSelection: () => {},
     loadSelectedFiles: async () => {},
     setInstructions: () => {},
     setIgnorePatterns: () => {},
-
     addCustomInstruction: () => {},
     updateCustomInstruction: () => {},
     removeCustomInstruction: () => {},
     toggleCustomInstruction: () => {},
-
     clearSelection: () => {},
-
     getFinalPrompt: () => '',
     getFinalPromptTokens: () => 0,
-
     toastOpen: false,
     toastMessage: '',
     toastSeverity: 'success',
     showSuccessToast: () => {},
     showErrorToast: () => {},
     clearToast: () => {},
-
     applyXmlChanges: async () => {},
   }
 
@@ -335,13 +324,12 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         }
         gatherSelected(updatedTree)
 
-        // Update store with newly opened handle and directory name
         set({
           fileTree: updatedTree,
           selectedFiles: newSelected,
           loadedFiles: [],
           lastDirHandle: dirHandle,
-          rootDirectoryPath: dirHandle.name || null, // Store the folder name
+          rootDirectoryPath: dirHandle.name || null,
         })
 
         persistFileState(get())
@@ -354,7 +342,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
     async refreshDirectory() {
       const { lastDirHandle, rootDirectoryPath } = get()
       if (lastDirHandle) {
-        // We already have a handle in memory, just rebuild the tree
         try {
           const tree = await buildFileTree(lastDirHandle)
 
@@ -396,9 +383,7 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           get().showErrorToast('Failed to refresh directory!')
         }
       } else {
-        // No handle in memory, but we might have a saved directory name
         if (rootDirectoryPath) {
-          // Attempt to open it again (will prompt user to confirm)
           await get().openDirectory()
         }
       }
@@ -648,10 +633,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
       set({ toastOpen: false, toastMessage: '' })
     },
 
-    /**
-     * Apply XML-based code changes to the opened directory.
-     * We fix the Windows path bug by converting backslashes to forward slashes.
-     */
     async applyXmlChanges(xmlText: string) {
       const { lastDirHandle, showErrorToast, showSuccessToast } = get()
       if (!lastDirHandle) {
@@ -679,7 +660,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         return
       }
 
-      // Helper to create or navigate to a subdirectory
       async function getDirectoryHandleRecursive(
         baseHandle: FileSystemDirectoryHandle,
         segments: string[],
@@ -693,7 +673,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         return currentHandle
       }
 
-      // Main loop
       for (const fileElem of files) {
         const operation = fileElem
           .querySelector('file_operation')
@@ -707,17 +686,14 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           throw new Error('XML missing required fields')
         }
 
-        // Normalize Windows paths
         filePath = filePath.replace(/\\/g, '/')
 
-        // Separate out path segments
         const segments = filePath.split('/').filter(Boolean)
         if (!segments.length) {
           showErrorToast(`Invalid file path: ${filePath}`)
           throw new Error('Invalid file path')
         }
 
-        // The last segment is the file name, the rest are directories
         const fileName = segments.pop()!
         const directorySegments = segments
 
@@ -725,15 +701,12 @@ export const useFileStore = create<FileStoreState>((set, get) => {
           if (operation === 'CREATE' || operation === 'UPDATE') {
             const fileCode =
               fileElem.querySelector('file_code')?.textContent || ''
-            // If no code is present, assume empty string
 
-            // Get or create the subdirectory
             const parentDir = await getDirectoryHandleRecursive(
               lastDirHandle,
               directorySegments,
             )
 
-            // Create or overwrite the file
             const fileHandle = await parentDir.getFileHandle(fileName, {
               create: true,
             })
@@ -741,12 +714,10 @@ export const useFileStore = create<FileStoreState>((set, get) => {
             await writable.write(fileCode)
             await writable.close()
           } else if (operation === 'DELETE') {
-            // Get directory handle
             const parentDir = await getDirectoryHandleRecursive(
               lastDirHandle,
               directorySegments,
             )
-            // Remove entry
             await parentDir.removeEntry(fileName, { recursive: true })
           } else {
             showErrorToast(`Invalid file_operation: ${operation}`)
@@ -762,7 +733,6 @@ export const useFileStore = create<FileStoreState>((set, get) => {
         }
       }
 
-      // If all changes are applied successfully
       showSuccessToast('All changes applied successfully!')
     },
   }

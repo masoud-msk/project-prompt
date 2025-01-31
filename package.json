@@ -1,3 +1,4 @@
+
 {
   "name": "repo-prompt-webapp",
   "version": "1.0.0",
@@ -20,7 +21,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "uuid": "^11.0.5",
-    "zustand": "^4.3.9"
+    "zustand": "^4.3.9",
+    "wildcard-match": "^1.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

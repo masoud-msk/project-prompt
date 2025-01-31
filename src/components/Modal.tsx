@@ -1,3 +1,4 @@
+
 // <ai_context>
 //  A simple modal component that renders its children when "show" is true.
 // </ai_context>
@@ -15,7 +16,7 @@ interface ModalProps {
 export default function Modal({ show, onClose, children }: ModalProps) {
   return (
     <Dialog open={show} onClose={onClose} maxWidth="md" fullWidth>
-      <Box sx={{ position: 'relative', p: 2 }}>
+      <Box sx={{ position: 'relative', p: 2, minHeight: '400px' }}>
         <Tooltip title="Close">
           <IconButton
             aria-label="close"

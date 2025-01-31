@@ -1161,6 +1161,11 @@ vite@^5.0.0:
   optionalDependencies:
     fsevents "~2.3.3"
 
+wildcard-match@^1.0.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/wildcard-match/-/wildcard-match-1.1.0.tgz#166a247a83581921867841c9dba03b75b98e9a3e"
+  integrity sha512-iYLDT7W2XmPqp45HylJzwSqD8qUSL6gIVz+/k0v0B+WPGt28rj/BLIUy3YoS3Fvfs4d6Yhl0o+kDWpd+0tDJAA==
+
 yallist@^3.0.2:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-3.1.1.tgz#dbb7daf9bfd8bac9ab45ebf602b8cbad0d5d08fd"

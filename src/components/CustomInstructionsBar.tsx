@@ -1,3 +1,4 @@
+
 // <ai_context>
 //  Displays a horizontally scrollable list of custom instructions (by name).
 //  Placed above the InstructionsField, toggled on click (no width change).
@@ -69,8 +70,8 @@ export default function CustomInstructionsBar() {
                   variant="body2"
                   sx={{
                     fontWeight: 400,
-                    // text should be dark if isActive
                     color: ci.isActive ? '#000' : 'inherit',
+                    fontSize: 12
                   }}
                 >
                   {label}

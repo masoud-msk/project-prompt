@@ -17,7 +17,7 @@ import {
   Stack,
   Typography,
   ListItemSecondaryAction,
-  Tooltip
+  Tooltip,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
@@ -101,7 +101,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
-          minHeight: '300px',
+          minHeight: '400px',
           maxHeight: '70vh',
         }}
       >
@@ -114,7 +114,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
             border: 1,
             borderColor: 'divider',
             borderRadius: 1,
-            p: 1,
+            p: 0,
           }}
         >
           {customInstructions.length === 0 && (
@@ -123,7 +123,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
             </Typography>
           )}
           {customInstructions.length > 0 && (
-            <List dense>
+            <List dense sx={{ px: 2 }}>
               {customInstructions.map(ci => {
                 const tokenCount = approximateTokens(ci.content)
                 const displayName = `${ci.name} (${formatTokenCount(tokenCount)} T)`
@@ -181,7 +181,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
             onChange={e => setContentValue(e.target.value)}
             variant="outlined"
             multiline
-            rows={3}
+            rows={5}
           />
           <Button variant="contained" onClick={handleSubmit}>
             {isEditing ? 'Update Instruction' : 'Add Instruction'}

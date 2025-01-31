@@ -10,10 +10,7 @@ import { useFileStore } from '../store'
 import { formatTokenCount } from '../utils/tokenHelpers'
 
 export default function PromptGenerator() {
-  const {
-    getFinalPrompt,
-    getFinalPromptTokens
-  } = useFileStore()
+  const { getFinalPrompt, getFinalPromptTokens } = useFileStore()
 
   const promptValue = getFinalPrompt()
   const totalTokens = getFinalPromptTokens()
@@ -37,7 +34,7 @@ export default function PromptGenerator() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          mb: 1
+          mb: 1,
         }}
       >
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
@@ -50,12 +47,12 @@ export default function PromptGenerator() {
 
       <TextField
         multiline
-        rows={10}
+        rows={13}
         fullWidth
         variant="outlined"
         value={promptValue}
         InputProps={{
-          readOnly: true
+          readOnly: true,
         }}
       />
     </Box>

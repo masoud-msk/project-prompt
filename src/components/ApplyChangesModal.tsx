@@ -86,7 +86,14 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
         </Tooltip>
       </DialogTitle>
       <Box
-        sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}
+        sx={{
+          px: 3,
+          pb: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          minHeight: 400,
+        }}
       >
         <Typography variant="body2">
           Paste or edit your <strong>code_changes</strong> XML below:
