@@ -27,24 +27,52 @@ interface Props {
 
 const exampleXml = `<code_changes>
   <changed_files>
+    <!-- Creating a new file -->
     <file>
       <file_operation>CREATE</file_operation>
-      <file_path>app/page.tsx</file_path>
+      <file_path>app/newPage.tsx</file_path>
       <file_code><![CDATA[
 console.log("Hello from newly created file!")
 ]]></file_code>
     </file>
+
+    <!-- Deleting an old file -->
+    <file>
+      <file_operation>DELETE</file_operation>
+      <file_path>src/oldFile.ts</file_path>
+    </file>
+
+    <!-- Full-file update (legacy approach) -->
     <file>
       <file_operation>UPDATE</file_operation>
       <file_path>src/store.ts</file_path>
       <file_code><![CDATA[
-// Some updated content
-console.log("Store updated!")
+// Overwrite the entire file
+console.log("Store updated with entire new content!")
 ]]></file_code>
     </file>
+
+    <!-- Partial line updates (new approach) -->
     <file>
-      <file_operation>DELETE</file_operation>
-      <file_path>src/oldFile.ts</file_path>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/components/Example.tsx</file_path>
+      <diffs>
+        <diff>
+          <start_line>4</start_line>
+          <end_line>7</end_line>
+          <new_lines><![CDATA[
+console.log("some new line");
+console.log("another new line");
+]]></new_lines>
+        </diff>
+        <diff>
+          <start_line>10</start_line>
+          <end_line>10</end_line>
+          <new_lines><![CDATA[
+console.log("completely replaced line 10");
+]]></new_lines>
+        </diff>
+      </diffs>
     </file>
   </changed_files>
 </code_changes>`
@@ -83,8 +111,6 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
     }
     setIsApplying(true)
     try {
-      // We'll do the direct logic here because we no longer store applyXmlChanges in fileStore
-      // But we can do it inline or create a helper function
       const doc = new DOMParser().parseFromString(xmlText, 'application/xml')
       const parserError = doc.querySelector('parsererror')
       if (parserError) {
@@ -115,7 +141,7 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
         const fileName = segments.pop()!
         const directorySegments = segments
 
-        if (operation === 'CREATE' || operation === 'UPDATE') {
+        if (operation === 'CREATE') {
           const fileCode =
             fileElem.querySelector('file_code')?.textContent || ''
 
@@ -135,6 +161,89 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
             directorySegments,
           )
           await parentDir.removeEntry(fileName, { recursive: true })
+        } else if (operation === 'UPDATE') {
+          const hasDiffs = fileElem.querySelector('diffs')
+          if (hasDiffs) {
+            // Partial line updates
+            const parentDir = await getDirectoryHandleRecursive(
+              lastDirHandle,
+              directorySegments,
+            )
+            const fileHandle = await parentDir.getFileHandle(fileName, {
+              create: false,
+            })
+            const originalFile = await fileHandle.getFile()
+            const originalContent = await originalFile.text()
+            const lines = originalContent.split('\n')
+
+            // Gather all <diff> entries
+            const diffElems = fileElem.querySelectorAll('diffs > diff')
+            // Convert NodeList to an array for sorting
+            const diffArray = Array.from(diffElems).map(diffElem => {
+              const startLine = parseInt(
+                diffElem.querySelector('start_line')?.textContent || '0',
+                10,
+              )
+              const endLine = parseInt(
+                diffElem.querySelector('end_line')?.textContent || '0',
+                10,
+              )
+              const newLinesContent =
+                diffElem.querySelector('new_lines')?.textContent || ''
+              return { startLine, endLine, newLinesContent }
+            })
+
+            // Sort diffs descending by startLine so that line indexes remain correct
+            diffArray.sort((a, b) => b.startLine - a.startLine)
+
+            // Apply each diff
+            for (const diff of diffArray) {
+              // Validate line ranges
+              if (
+                diff.startLine < 1 ||
+                diff.endLine < diff.startLine ||
+                diff.startLine > lines.length
+              ) {
+                console.warn(
+                  `Skipping invalid diff: start=${diff.startLine} end=${diff.endLine}`,
+                )
+                continue
+              }
+
+              // Convert 1-based line indexing to 0-based
+              const startIndex = diff.startLine - 1
+              const endIndex = Math.min(diff.endLine - 1, lines.length - 1)
+
+              // Remove the specified lines
+              lines.splice(startIndex, endIndex - startIndex + 1)
+
+              // Insert the new lines if any
+              if (diff.newLinesContent.length > 0) {
+                const insertion = diff.newLinesContent.split('\n')
+                // Insert at startIndex
+                lines.splice(startIndex, 0, ...insertion)
+              }
+            }
+
+            const newContent = lines.join('\n')
+            const writable = await fileHandle.createWritable()
+            await writable.write(newContent)
+            await writable.close()
+          } else {
+            // Full file update fallback
+            const fileCode =
+              fileElem.querySelector('file_code')?.textContent || ''
+            const parentDir = await getDirectoryHandleRecursive(
+              lastDirHandle,
+              directorySegments,
+            )
+            const fileHandle = await parentDir.getFileHandle(fileName, {
+              create: true,
+            })
+            const writable = await fileHandle.createWritable()
+            await writable.write(fileCode)
+            await writable.close()
+          }
         } else {
           throw new Error(`Unknown file operation: ${operation}`)
         }
@@ -208,3 +317,175 @@ export default function ApplyChangesModal({ open, onClose }: Props) {
     </Dialog>
   )
 }
+
+/*
+Instruction:
+
+### XML Format Guide
+
+1. **Root Element**
+   ```xml
+   <code_changes>
+     <changed_files>
+       <!-- ...files here... -->
+     </changed_files>
+   </code_changes>
+   ```
+   - All file changes must be contained within `<code_changes>` > `<changed_files>`.
+
+2. **File Element**
+   Each changed file is represented by a `<file>` element with the following structure:
+
+   ```xml
+   <file>
+     <file_operation>CREATE | UPDATE | DELETE</file_operation>
+     <file_path>__RELATIVE FILE PATH HERE__</file_path>
+
+     <!-- For CREATE or UPDATE (full-file overwrite) -->
+     <file_code><![CDATA[
+__FULL FILE CONTENT HERE__
+]]></file_code>
+
+     <!-- For partial line updates (only if file_operation=UPDATE) -->
+     <diffs>
+       <diff>
+         <start_line>__NUMBER__</start_line>
+         <end_line>__NUMBER__</end_line>
+         <new_lines><![CDATA[
+__REPLACEMENT LINES__
+]]></new_lines>
+       </diff>
+       <!-- Additional <diff> blocks as needed -->
+     </diffs>
+   </file>
+   ```
+
+3. **Operations**
+
+   - **CREATE**
+     - Provide `<file_code>` containing the **complete** contents of the new file.
+     - Example:
+       ```xml
+       <file>
+         <file_operation>CREATE</file_operation>
+         <file_path>src/newFile.ts</file_path>
+         <file_code><![CDATA[
+console.log("Hello from newly created file!")
+]]></file_code>
+       </file>
+       ```
+
+   - **DELETE**
+     - No code or diffs are needed; just specify the path to be removed.
+     - Example:
+       ```xml
+       <file>
+         <file_operation>DELETE</file_operation>
+         <file_path>src/obsoleteFile.ts</file_path>
+       </file>
+       ```
+
+   - **UPDATE**
+     - Option A (Full Overwrite): Provide `<file_code>` with **all** lines of the updated file:
+       ```xml
+       <file>
+         <file_operation>UPDATE</file_operation>
+         <file_path>src/updateMe.ts</file_path>
+         <file_code><![CDATA[
+// Entirely new content
+console.log("Full file replaced!");
+]]></file_code>
+       </file>
+       ```
+     - Option B (Partial Line Updates): Provide a `<diffs>` section with one or more `<diff>` blocks. Each `<diff>` has:
+       - `<start_line>`: First line to replace (1-indexed).
+       - `<end_line>`: Last line to replace (inclusive, also 1-indexed).
+       - `<new_lines>`: Replacement text (may contain multiple lines). If empty, the specified lines are removed without replacement.
+
+       **Important**: If multiple `<diff>` blocks exist, apply them **from highest line number to lowest** to preserve correct offsets.
+
+       ```xml
+       <file>
+         <file_operation>UPDATE</file_operation>
+         <file_path>src/components/Example.tsx</file_path>
+         <diffs>
+           <diff>
+             <start_line>4</start_line>
+             <end_line>7</end_line>
+             <new_lines><![CDATA[
+console.log("some new line");
+console.log("another new line");
+]]></new_lines>
+           </diff>
+           <diff>
+             <start_line>10</start_line>
+             <end_line>10</end_line>
+             <new_lines><![CDATA[
+console.log("single line replaced");
+]]></new_lines>
+           </diff>
+         </diffs>
+       </file>
+       ```
+     - If both `<file_code>` and `<diffs>` are present, partial diffs can override certain lines after the file is otherwise replaced. (Implementation may vary.)
+
+---
+
+### Example of the Full Structure
+
+```xml
+<code_changes>
+  <changed_files>
+    <!-- CREATE a new file with full content -->
+    <file>
+      <file_operation>CREATE</file_operation>
+      <file_path>app/page.tsx</file_path>
+      <file_code><![CDATA[
+console.log("Hello from newly created file!")
+]]></file_code>
+    </file>
+
+    <!-- DELETE an old file -->
+    <file>
+      <file_operation>DELETE</file_operation>
+      <file_path>src/oldFile.ts</file_path>
+    </file>
+
+    <!-- UPDATE a file using full overwrite -->
+    <file>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/store.ts</file_path>
+      <file_code><![CDATA[
+// Entire file replaced
+console.log("Store updated with new content!");
+]]></file_code>
+    </file>
+
+    <!-- UPDATE a file with partial edits (line ranges) -->
+    <file>
+      <file_operation>UPDATE</file_operation>
+      <file_path>src/components/Example.tsx</file_path>
+      <diffs>
+        <diff>
+          <start_line>4</start_line>
+          <end_line>7</end_line>
+          <new_lines><![CDATA[
+console.log("some new line");
+console.log("another new line");
+]]></new_lines>
+        </diff>
+        <diff>
+          <start_line>10</start_line>
+          <end_line>10</end_line>
+          <new_lines><![CDATA[
+console.log("completely replaced line 10");
+]]></new_lines>
+        </diff>
+      </diffs>
+    </file>
+  </changed_files>
+</code_changes>
+```
+
+With this enhanced format, you can continue to **create, delete, or fully replace** files, but also **insert/remove/replace** specific lines in an existing file without having to rewrite it entirely.
+ */
