@@ -23,9 +23,28 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { styled } from '@mui/material/styles'
 import { useCustomInstructionsStore } from '../../store/customInstructionsStore'
 import { approximateTokens, formatTokenCount } from '../../utils/tokenHelpers'
+
+// DnD Kit
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  DragEndEvent,
+  DragStartEvent
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
+
+// We create a small SortableItem to handle individual list items
+import SortableCustomInstructionItem from './SortableCustomInstructionItem'
 
 interface Props {
   open: boolean
@@ -54,13 +73,17 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
     customInstructions,
     addCustomInstruction,
     updateCustomInstruction,
-    removeCustomInstruction
+    removeCustomInstruction,
+    reorderCustomInstructions
   } = useCustomInstructionsStore()
 
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [nameValue, setNameValue] = useState('')
   const [contentValue, setContentValue] = useState('')
+
+  // We can store the item being dragged
+  const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   const handleClose = () => {
     resetForm()
@@ -96,6 +119,27 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
     removeCustomInstruction(id)
   }
 
+  // DnD Kit sensors
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveDragId(null)
+
+    if (!over || active.id === over.id) return
+
+    // Find oldIndex, newIndex
+    const oldIndex = customInstructions.findIndex(ci => ci.id === active.id)
+    const newIndex = customInstructions.findIndex(ci => ci.id === over.id)
+    if (oldIndex !== -1 && newIndex !== -1) {
+      reorderCustomInstructions(oldIndex, newIndex)
+    }
+  }
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <StyledDialogTitle>
@@ -108,7 +152,7 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
       </StyledDialogTitle>
 
       <ModalContent>
-        {/* Existing Instructions */}
+        {/* Existing Instructions with DnD */}
         <Box
           sx={{
             flex: 1,
@@ -126,46 +170,60 @@ export default function CustomInstructionsModal({ open, onClose }: Props) {
             </Typography>
           )}
           {customInstructions.length > 0 && (
-            <List dense sx={{ px: 2 }}>
-              {customInstructions.map(ci => {
-                const tokenCount = approximateTokens(ci.content)
-                const displayName = `${ci.name} (${formatTokenCount(tokenCount)} T)`
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={customInstructions.map(ci => ci.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <List dense sx={{ px: 2 }}>
+                  {customInstructions.map(ci => {
+                    const tokenCount = approximateTokens(ci.content)
+                    const displayName = `${ci.name} (${formatTokenCount(tokenCount)} T)`
 
-                return (
-                  <ListItem key={ci.id} disableGutters>
-                    <ListItemText
-                      primary={displayName}
-                      secondary={
-                        ci.content.length > 50
-                          ? ci.content.slice(0, 50) + '...'
-                          : ci.content
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <Tooltip title="Edit instruction">
-                        <IconButton
-                          edge="end"
-                          aria-label="edit"
-                          onClick={() => handleEdit(ci.id, ci.name, ci.content)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete instruction">
-                        <IconButton
-                          edge="end"
-                          aria-label="delete"
-                          onClick={() => handleDelete(ci.id)}
-                          sx={{ ml: 1 }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                )
-              })}
-            </List>
+                    return (
+                      <SortableCustomInstructionItem key={ci.id} ci={ci}>
+                        <ListItemText
+                          primary={displayName}
+                          secondary={
+                            ci.content.length > 50
+                              ? ci.content.slice(0, 50) + '...'
+                              : ci.content
+                          }
+                        />
+                        <ListItemSecondaryAction>
+                          <Tooltip title="Edit instruction">
+                            <IconButton
+                              edge="end"
+                              aria-label="edit"
+                              onClick={() =>
+                                handleEdit(ci.id, ci.name, ci.content)
+                              }
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete instruction">
+                            <IconButton
+                              edge="end"
+                              aria-label="delete"
+                              onClick={() => handleDelete(ci.id)}
+                              sx={{ ml: 1 }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </ListItemSecondaryAction>
+                      </SortableCustomInstructionItem>
+                    )
+                  })}
+                </List>
+              </SortableContext>
+            </DndContext>
           )}
         </Box>
 

@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// We can import a small array-move utility from @dnd-kit/sortable:
+import { arrayMove } from '@dnd-kit/sortable'
+
 export interface CustomInstruction {
   id: string
   name: string
@@ -20,6 +23,9 @@ interface CustomInstructionsState {
   updateCustomInstruction: (id: string, name: string, content: string) => void
   removeCustomInstruction: (id: string) => void
   toggleCustomInstruction: (id: string) => void
+
+  // Reorder instructions by drag-and-drop
+  reorderCustomInstructions: (oldIndex: number, newIndex: number) => void
 }
 
 export const useCustomInstructionsStore = create<CustomInstructionsState>()(
@@ -55,6 +61,13 @@ export const useCustomInstructionsStore = create<CustomInstructionsState>()(
           ci.id === id ? { ...ci, isActive: !ci.isActive } : ci
         )
         set({ customInstructions: updated })
+      },
+
+      reorderCustomInstructions: (oldIndex, newIndex) => {
+        const current = get().customInstructions
+        if (oldIndex === newIndex) return
+        const reordered = arrayMove(current, oldIndex, newIndex)
+        set({ customInstructions: reordered })
       }
     }),
     {
