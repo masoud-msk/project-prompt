@@ -1,4 +1,3 @@
-
 // <ai_context>
 //  A text area for the user's instructions that will be appended to the final prompt.
 //  Includes a "Copy Prompt" button at the bottom to copy the entire prompt content.
@@ -12,7 +11,7 @@ import {
   FormControlLabel,
   Switch,
   IconButton,
-  Button
+  Button,
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -22,14 +21,24 @@ import { useToastStore } from '../store/toastStore'
 import Modal from './modals/Modal'
 import PromptGenerator from './PromptGenerator'
 import { formatTokenCount } from '../utils/tokenHelpers'
+import { useCustomInstructionsStore } from '../store/customInstructionsStore'
 
 export default function InstructionsField() {
-  const { instructions, setInstructions, getFinalPrompt, getFinalPromptTokens } =
-    useInstructionsStore()
-  const { includeTreeInPrompt, setIncludeTreeInPrompt, loadedFiles } = useFileStore()
+  const {
+    instructions,
+    setInstructions,
+    getFinalPrompt,
+    getFinalPromptTokens,
+  } = useInstructionsStore()
+  const { includeTreeInPrompt, setIncludeTreeInPrompt, loadedFiles } =
+    useFileStore()
   const { showSuccessToast } = useToastStore()
 
   const [localInstructions, setLocalInstructions] = useState(instructions)
+
+  const { customInstructions } = useCustomInstructionsStore()
+
+  const activeCustoms = customInstructions.filter(ci => ci.isActive)
 
   useEffect(() => {
     setLocalInstructions(instructions)
@@ -57,8 +66,16 @@ export default function InstructionsField() {
     if (localInstructions !== instructions) {
       setInstructions(localInstructions)
     }
-    const prompt = getFinalPrompt(loadedFiles, [], includeTreeInPrompt)
-    const tokenCount = getFinalPromptTokens(loadedFiles, [], includeTreeInPrompt)
+    const prompt = getFinalPrompt(
+      loadedFiles,
+      activeCustoms,
+      includeTreeInPrompt,
+    )
+    const tokenCount = getFinalPromptTokens(
+      loadedFiles,
+      activeCustoms,
+      includeTreeInPrompt,
+    )
 
     try {
       await navigator.clipboard.writeText(prompt)

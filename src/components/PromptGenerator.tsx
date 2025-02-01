@@ -1,11 +1,10 @@
-
 // <ai_context>
 //  Displays the final combined prompt: instructions + loaded files + active custom instructions
 //  plus a copy button. We retrieve instructions and custom instructions from their stores,
 //  and the loaded files from the file store.
 // </ai_context>
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { TextField, Typography, Box, Button } from '@mui/material'
 import { useInstructionsStore } from '../store/instructionsStore'
 import { useFileStore } from '../store/fileStore'
@@ -19,8 +18,16 @@ export default function PromptGenerator() {
 
   const activeCustoms = customInstructions.filter(ci => ci.isActive)
 
-  const promptValue = getFinalPrompt(loadedFiles, activeCustoms, includeTreeInPrompt)
-  const totalTokens = getFinalPromptTokens(loadedFiles, activeCustoms, includeTreeInPrompt)
+  const promptValue = getFinalPrompt(
+    loadedFiles,
+    activeCustoms,
+    includeTreeInPrompt,
+  )
+  const totalTokens = getFinalPromptTokens(
+    loadedFiles,
+    activeCustoms,
+    includeTreeInPrompt,
+  )
 
   const [copied, setCopied] = useState(false)
 
@@ -41,7 +48,7 @@ export default function PromptGenerator() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          mb: 1
+          mb: 1,
         }}
       >
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
@@ -59,7 +66,7 @@ export default function PromptGenerator() {
         variant="outlined"
         value={promptValue}
         InputProps={{
-          readOnly: true
+          readOnly: true,
         }}
       />
     </Box>

@@ -1,4 +1,3 @@
-
 // <ai_context>
 //  Holds the user's main "instructions" content, plus helpers to build a final prompt
 //  from instructions + optional custom instructions + loaded files (passed in).
@@ -26,7 +25,7 @@ function buildAsciiTree(paths: string[]): string {
   function printTree(
     obj: Record<string, any>,
     prefix: string,
-    _isLast: boolean
+    _isLast: boolean,
   ): string {
     const entries = Object.keys(obj).sort()
     let output = ''
@@ -56,14 +55,14 @@ interface InstructionsState {
   getFinalPrompt: (
     loadedFiles: { path: string; content: string }[],
     activeCustomInstructions: { content: string }[],
-    includeTreeInPrompt: boolean
+    includeTreeInPrompt: boolean,
   ) => string
 
   // Return approximate token count
   getFinalPromptTokens: (
     loadedFiles: { path: string; content: string }[],
     activeCustomInstructions: { content: string }[],
-    includeTreeInPrompt: boolean
+    includeTreeInPrompt: boolean,
   ) => number
 }
 
@@ -106,13 +105,13 @@ export const useInstructionsStore = create<InstructionsState>()(
         const text = get().getFinalPrompt(
           loadedFiles,
           activeCustoms,
-          includeTreeInPrompt
+          includeTreeInPrompt,
         )
         return approximateTokens(text)
-      }
+      },
     }),
     {
-      name: 'instructions-store'
-    }
-  )
+      name: 'instructions-store',
+    },
+  ),
 )
